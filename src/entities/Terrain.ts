@@ -70,7 +70,8 @@ export class TerrainBuilder {
     return {
       spawn: {
         x: spawnM.x * ts + ts / 2,
-        y: spawnM.y * ts + ts / 2,
+        // Stand on the brick row directly below the spawn marker
+        y: (spawnM.y + 1) * ts - 14,
       },
       boss: {
         x: bossM.x * ts + ts / 2,

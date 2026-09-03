@@ -77,7 +77,7 @@ export class TitleScene extends Phaser.Scene {
 
     btn.on('pointerover', () => btn.setFillStyle(0x40916c));
     btn.on('pointerout', () => btn.setFillStyle(0x2d6a4f));
-    btn.on('pointerup', () => this.scene.start('SaveSlot'));
+    btn.on('pointerdown', () => this.scene.start('SaveSlot'));
 
     this.add
       .text(w / 2, h * 0.88, '키보드: ←→ / A D 이동 · Space 점프 · Z 공격 · X 아이템', {

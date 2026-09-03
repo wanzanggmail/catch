@@ -26,6 +26,16 @@ function emptySlot(): SlotData {
   };
 }
 
+function normalizeSlot(slot: SlotData): SlotData {
+  slot.unlockedStage = Math.max(1, Math.min(STAGES, slot.unlockedStage || 1));
+  if (!slot.unlockedMap) slot.unlockedMap = { 1: 1 };
+  if ((slot.unlockedMap[1] ?? 0) < 1) slot.unlockedMap[1] = 1;
+  if (!slot.clearedMaps) slot.clearedMaps = [];
+  if (!slot.inventoryBuffs) slot.inventoryBuffs = [];
+  slot.highestStageCleared = Math.max(0, slot.highestStageCleared || 0);
+  return slot;
+}
+
 function defaultSave(): SaveFile {
   return {
     version: 1,
@@ -48,6 +58,7 @@ export class SaveManager {
       const parsed = JSON.parse(raw) as SaveFile;
       if (parsed.version !== 1 || !Array.isArray(parsed.slots)) return defaultSave();
       while (parsed.slots.length < SAVE_SLOTS) parsed.slots.push(null);
+      parsed.slots = parsed.slots.map((s) => (s ? normalizeSlot(s) : null));
       return parsed;
     } catch {
       return defaultSave();
@@ -63,7 +74,7 @@ export class SaveManager {
   }
 
   createSlot(index: number): SlotData {
-    const slot = emptySlot();
+    const slot = normalizeSlot(emptySlot());
     this.data.slots[index] = slot;
     this.persist();
     return slot;

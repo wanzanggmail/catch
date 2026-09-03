@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME, EVOLUTION, evolutionForPlayingStage, type BuffType } from '../game/config';
-import { generateMap } from '../maps/generateMap';
+import { getMapDef } from '../maps/index';
 import { TerrainBuilder, updateCloudBlock } from '../entities/Terrain';
 import { Player } from '../entities/Player';
 import { BossRat } from '../entities/BossRat';
@@ -53,7 +53,7 @@ export class PlayScene extends Phaser.Scene {
   }
 
   create(): void {
-    const def = generateMap(this.stage, this.map);
+    const def = getMapDef(this.stage, this.map);
     this.difficulty = saveManager.difficultyFactor();
     this.terrain = new TerrainBuilder(this, def);
     const markers = this.terrain.build();
@@ -127,14 +127,32 @@ export class PlayScene extends Phaser.Scene {
     this.vcam.snapToPlayer(this.player.y);
 
     // Input
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.keyA = this.input.keyboard!.addKey('A');
-    this.keyD = this.input.keyboard!.addKey('D');
-    this.keyZ = this.input.keyboard!.addKey('Z');
-    this.keyJ = this.input.keyboard!.addKey('J');
-    this.keyX = this.input.keyboard!.addKey('X');
-    this.keyK = this.input.keyboard!.addKey('K');
-    this.keySpace = this.input.keyboard!.addKey('SPACE');
+    const kb = this.input.keyboard;
+    if (kb) {
+      this.cursors = kb.createCursorKeys();
+      this.keyA = kb.addKey('A');
+      this.keyD = kb.addKey('D');
+      this.keyZ = kb.addKey('Z');
+      this.keyJ = kb.addKey('J');
+      this.keyX = kb.addKey('X');
+      this.keyK = kb.addKey('K');
+      this.keySpace = kb.addKey('SPACE');
+    } else {
+      this.cursors = {
+        left: { isDown: false },
+        right: { isDown: false },
+        up: { isDown: false },
+        down: { isDown: false },
+      } as Phaser.Types.Input.Keyboard.CursorKeys;
+      const noop = { isDown: false } as Phaser.Input.Keyboard.Key;
+      this.keyA = noop;
+      this.keyD = noop;
+      this.keyZ = noop;
+      this.keyJ = noop;
+      this.keyX = noop;
+      this.keyK = noop;
+      this.keySpace = noop;
+    }
     this.touch = new TouchControls(this, this.inputAdapter);
 
     this.hud = this.add
