@@ -81,6 +81,21 @@ export function generateTextures(scene: Phaser.Scene): void {
   g.fillCircle(32, 36, 5);
   g.generateTexture('boss', 64, 56);
 
+  // small rat (1-hit)
+  g.clear();
+  g.fillStyle(0x8d99ae, 1);
+  g.fillRoundedRect(2, 8, 20, 12, 5);
+  g.fillCircle(6, 8, 5);
+  g.fillCircle(18, 8, 5);
+  g.fillStyle(0x222222, 1);
+  g.fillCircle(8, 14, 1.5);
+  g.fillCircle(16, 14, 1.5);
+  g.fillStyle(0xffcad4, 1);
+  g.fillCircle(12, 16, 2);
+  g.fillStyle(0x6c757d, 1);
+  g.fillRect(20, 12, 6, 2);
+  g.generateTexture('rat', 28, 22);
+
   // projectile
   g.clear();
   g.fillStyle(0x6d597a, 1);

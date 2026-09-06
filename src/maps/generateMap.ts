@@ -10,6 +10,15 @@ export type TileKind =
   | 'spawn'
   | 'boss';
 
+export interface RatSpawn {
+  /** Tile coords — rat stands on platform at (x, y) */
+  x: number;
+  y: number;
+  /** Patrol bounds in tiles (inclusive platform edges) */
+  left: number;
+  right: number;
+}
+
 export interface MapDef {
   stage: number;
   map: number;
@@ -17,6 +26,7 @@ export interface MapDef {
   height: number;
   tiles: TileKind[][]; // [y][x]
   questionBuffs: Record<string, BuffType>; // "x,y" -> buff
+  ratSpawns: RatSpawn[];
 }
 
 function mulberry32(seed: number): () => number {
@@ -59,6 +69,7 @@ export function generateMap(stage: number, map: number): MapDef {
   const rnd = mulberry32(seed);
   const tiles = emptyGrid(width, height);
   const questionBuffs: Record<string, BuffType> = {};
+  const ratSpawns: RatSpawn[] = [];
 
   // Ground floor
   for (let x = 0; x < width; x++) {
@@ -129,6 +140,17 @@ export function generateMap(stage: number, map: number): MapDef {
       }
     }
 
+    // Small 1-hit rats on many platforms (skip spawn-adjacent first ledge)
+    if (platIndex >= 1 && platW >= 3 && kind !== 'cloud' && rnd() < 0.55) {
+      const rx = x + Math.floor(platW / 2);
+      ratSpawns.push({
+        x: rx,
+        y: y - 1,
+        left: x,
+        right: x + platW - 1,
+      });
+    }
+
     // Occasional mid helper (not every platform — keeps air gaps visible)
     if (rnd() < 0.4) {
       const midY = y - 2;
@@ -167,11 +189,11 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[4]![Math.floor(width / 2)] = 'boss';
 
-  return { stage, map, width, height, tiles, questionBuffs };
+  return { stage, map, width, height, tiles, questionBuffs, ratSpawns };
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v3-s${stage}m${map}`;
+  return `v4-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {

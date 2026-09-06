@@ -122,11 +122,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.facing = -1;
         const target = -speed;
         if (this.onSlippery && onFloor) {
-          // Line block: still slippery, but usable
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.12);
         } else if (onFloor) {
-          // Firm ground control — no ice skating
-          body.setVelocityX(target);
+          // Natural ground accel (not ice, not instant snap)
+          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.38);
         } else {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, air);
         }
@@ -136,7 +135,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (this.onSlippery && onFloor) {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.12);
         } else if (onFloor) {
-          body.setVelocityX(target);
+          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.38);
         } else {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, air);
         }
@@ -145,8 +144,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
           body.velocity.x *= 0.97;
           if (Math.abs(body.velocity.x) < 12) body.velocity.x = 0;
         } else {
-          // Snap-stop on normal ground
-          body.setVelocityX(0);
+          // Soft brake — still grippy, not sticky
+          body.velocity.x *= 0.72;
+          if (Math.abs(body.velocity.x) < 18) body.setVelocityX(0);
         }
       }
     }

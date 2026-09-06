@@ -4,6 +4,7 @@ import { getMapDef } from '../maps/index';
 import { TerrainBuilder, updateCloudBlock } from '../entities/Terrain';
 import { Player } from '../entities/Player';
 import { BossRat } from '../entities/BossRat';
+import { SmallRat } from '../entities/SmallRat';
 import { VerticalCamera } from '../systems/CameraSystem';
 import { BuffSystem } from '../systems/BuffSystem';
 import { InputAdapter } from '../systems/InputAdapter';
@@ -20,6 +21,7 @@ export class PlayScene extends Phaser.Scene {
   private map = 1;
   private player!: Player;
   private boss!: BossRat;
+  private rats: SmallRat[] = [];
   private terrain!: TerrainBuilder;
   private vcam!: VerticalCamera;
   private buffs = new BuffSystem();
@@ -84,6 +86,25 @@ export class PlayScene extends Phaser.Scene {
     );
 
     this.boss = new BossRat(this, markers.boss.x, markers.boss.y, this.difficulty);
+
+    // Small 1-hit rats
+    this.rats = [];
+    const ts = GAME.tileSize;
+    for (const spawn of def.ratSpawns ?? []) {
+      const wx = spawn.x * ts + ts / 2;
+      const wy = spawn.y * ts + ts / 2;
+      const left = spawn.left * ts + 8;
+      const right = (spawn.right + 1) * ts - 8;
+      const rat = new SmallRat(this, wx, wy, left, right, 0.9 + this.difficulty * 0.15);
+      this.rats.push(rat);
+      this.physics.add.collider(rat, this.terrain.solids);
+      this.physics.add.collider(rat, this.terrain.questions);
+      this.physics.add.collider(rat, this.terrain.lines);
+      this.physics.add.overlap(this.player, rat, () => {
+        if (this.ended || rat.isDead) return;
+        if (this.player.takeHit()) this.lose('작은 쥐에게 물렸습니다');
+      });
+    }
 
     // Collisions
     this.physics.add.collider(this.player, this.terrain.solids);
@@ -303,6 +324,9 @@ export class PlayScene extends Phaser.Scene {
 
     this.vcam.update(this.player.y, delta / 1000);
     this.boss.updateAI(this.time.now, this.player.x);
+    for (const rat of this.rats) {
+      if (!rat.isDead && rat.active) rat.updatePatrol();
+    }
 
     // Soft floor clamp — no fall death; camera follows down instead
     const mapBottom = this.terrain.pixelHeight - 8;
@@ -348,6 +372,15 @@ export class PlayScene extends Phaser.Scene {
       const dead = this.boss.takeDamage(this.player.attackDamage());
       this.flashMsg(dead ? '보스 처치!' : `히트! 남은 HP ${this.boss.hp}`);
       if (dead) this.win();
+    }
+
+    // One-hit rats
+    for (const rat of this.rats) {
+      if (rat.isDead || !rat.active) continue;
+      if (Math.abs(rat.x - sx) < 42 && Math.abs(rat.y - sy) < 36) {
+        rat.takeHit();
+        this.flashMsg('쥐 처치!');
+      }
     }
 
     // Also melee nearby projectiles destroy
