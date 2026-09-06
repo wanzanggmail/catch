@@ -102,6 +102,10 @@ export class TerrainBuilder {
     s.setData('ty', ty);
     const buff = this.def.questionBuffs[`${tx},${ty}`] as BuffType | undefined;
     s.setData('buff', buff ?? 'speed');
+    // Larger hitbox so head-bumps register more easily
+    const body = s.body as Phaser.Physics.Arcade.StaticBody;
+    body.setSize(GAME.tileSize + 10, GAME.tileSize + 8);
+    body.setOffset(-5, -6);
   }
 
   private addCloud(x: number, y: number): void {

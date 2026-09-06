@@ -5,7 +5,8 @@ export const PHYSICS = {
   jumpForce: 680,
   airControlFactor: 0.9,
   maxFallSpeed: 700,
-  friction: 0.85,
+  /** Ground stop factor per frame (lower = stops faster). */
+  friction: 0.55,
   variableJumpCut: 0.55,
   coyoteTimeMs: 180,
   jumpBufferMs: 160,

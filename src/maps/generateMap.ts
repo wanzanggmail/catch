@@ -108,7 +108,7 @@ export function generateMap(stage: number, map: number): MapDef {
     let kind: TileKind = 'brick';
     const roll = rnd();
     if (stage >= 5 && roll < 0.12) kind = 'cloud';
-    else if (stage >= 3 && roll < 0.08) kind = 'line';
+    else if (stage >= 5 && roll < 0.05) kind = 'line';
     else if (roll < 0.22) kind = 'question';
 
     setPlat(tiles, x, y, platW, kind);

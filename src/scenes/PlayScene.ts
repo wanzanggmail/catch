@@ -91,6 +91,10 @@ export class PlayScene extends Phaser.Scene {
       this.handleQuestionHit(p as Player, q as Phaser.Physics.Arcade.Sprite);
       return true;
     });
+    // Extra forgiving trigger volume under/? around the block
+    this.physics.add.overlap(this.player, this.terrain.questions, (p, q) => {
+      this.handleQuestionHit(p as Player, q as Phaser.Physics.Arcade.Sprite);
+    });
     this.physics.add.collider(this.player, this.terrain.lines);
     this.physics.add.collider(this.player, this.terrain.clouds);
 
@@ -194,16 +198,20 @@ export class PlayScene extends Phaser.Scene {
     player: Player,
     block: Phaser.Physics.Arcade.Sprite,
   ): void {
+    if (block.getData('used')) return;
     const body = player.body as Phaser.Physics.Arcade.Body;
-    // Head bump from below
-    if (body.velocity.y < 0 || body.touching.up || body.blocked.up) {
-      const granted = this.terrain.hitQuestion(block, this.buffs, this.time.now);
-      if (granted) {
-        this.spawnBuffFx(block.x, block.y - 24, granted);
-        this.flashMsg(buffLabel(granted));
-        // Also stash one inventory buff chance
-        if (Math.random() < 0.35) saveManager.addInventoryBuff(granted);
-      }
+    // Standing on top of the block → ignore
+    if (body.blocked.down && player.y < block.y - 4) return;
+    // Generous hit: any contact while player is at/below the block center
+    if (player.y < block.y - 12 && body.velocity.y >= 0 && !body.touching.up && !body.blocked.up) {
+      return;
+    }
+    const granted = this.terrain.hitQuestion(block, this.buffs, this.time.now);
+    if (granted) {
+      this.spawnBuffFx(block.x, block.y - 24, granted);
+      this.flashMsg(buffLabel(granted));
+      if (Math.random() < 0.35) saveManager.addInventoryBuff(granted);
+      if (body.velocity.y < 0) body.setVelocityY(Math.min(body.velocity.y, -140));
     }
   }
 
@@ -257,8 +265,11 @@ export class PlayScene extends Phaser.Scene {
     this.inputAdapter.finalize();
     const input = this.inputAdapter.snapshot();
 
-    // Slippery check
-    const onLine = this.physics.overlap(this.player, this.terrain.lines);
+    // Slippery only when standing on a line block
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const onLine =
+      (body.blocked.down || body.touching.down) &&
+      this.physics.overlap(this.player, this.terrain.lines);
     this.player.setSlippery(onLine);
 
     this.player.updateControl(input, delta);
@@ -293,9 +304,12 @@ export class PlayScene extends Phaser.Scene {
     this.vcam.update(this.player.y, delta / 1000);
     this.boss.updateAI(this.time.now, this.player.x);
 
-    // Fall death
-    if (this.player.y > this.vcam.deadlyBottomY) {
-      this.respawnOrLose();
+    // Soft floor clamp — no fall death; camera follows down instead
+    const mapBottom = this.terrain.pixelHeight - 8;
+    if (this.player.y > mapBottom) {
+      this.player.y = mapBottom;
+      const body = this.player.body as Phaser.Physics.Arcade.Body;
+      if (body.velocity.y > 0) body.setVelocityY(0);
     }
 
     // HUD
@@ -343,12 +357,9 @@ export class PlayScene extends Phaser.Scene {
     });
   }
 
-  private respawnOrLose(): void {
-    if (this.ended) return;
-    if (this.player.takeHit()) {
-      this.lose('낙사');
-      return;
-    }
+  // Fall death removed — camera follows downward instead.
+  // Keep helper only if needed for future hazards.
+  private softRespawnAtCheckpoint(): void {
     this.player.setPosition(this.checkpoint.x, this.checkpoint.y);
     this.player.setVelocity(0, 0);
     this.vcam.snapToPlayer(this.player.y);

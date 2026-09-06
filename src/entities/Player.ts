@@ -122,7 +122,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.facing = -1;
         const target = -speed;
         if (this.onSlippery && onFloor) {
-          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.04);
+          // Line block: still slippery, but usable
+          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.12);
+        } else if (onFloor) {
+          // Firm ground control — no ice skating
+          body.setVelocityX(target);
         } else {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, air);
         }
@@ -130,16 +134,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.facing = 1;
         const target = speed;
         if (this.onSlippery && onFloor) {
-          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.04);
+          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.12);
+        } else if (onFloor) {
+          body.setVelocityX(target);
         } else {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, air);
         }
       } else if (onFloor) {
         if (this.onSlippery) {
-          body.velocity.x *= 0.995;
+          body.velocity.x *= 0.97;
+          if (Math.abs(body.velocity.x) < 12) body.velocity.x = 0;
         } else {
-          body.velocity.x *= PHYSICS.friction;
-          if (Math.abs(body.velocity.x) < 8) body.velocity.x = 0;
+          // Snap-stop on normal ground
+          body.setVelocityX(0);
         }
       }
     }
