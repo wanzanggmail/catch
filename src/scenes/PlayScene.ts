@@ -212,6 +212,30 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(900);
 
+    // Exit button → stage select
+    const exitBtn = this.add
+      .rectangle(GAME.width - 52, 52, 88, 32, 0x1b263b, 0.85)
+      .setStrokeStyle(2, 0xe63946)
+      .setScrollFactor(0)
+      .setDepth(910)
+      .setInteractive({ useHandCursor: true });
+    const exitLabel = this.add
+      .text(GAME.width - 52, 52, '나가기', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '14px',
+        color: '#fefae0',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(911);
+    exitBtn.on('pointerover', () => exitBtn.setFillStyle(0x3d0000, 0.9));
+    exitBtn.on('pointerout', () => exitBtn.setFillStyle(0x1b263b, 0.85));
+    exitBtn.on('pointerdown', () => {
+      this.ended = true;
+      this.scene.start('StageSelect', { stage: this.stage });
+    });
+    void exitLabel;
+
     this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`);
   }
 
