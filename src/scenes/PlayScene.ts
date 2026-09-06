@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME, EVOLUTION, evolutionForPlayingStage, type BuffType } from '../game/config';
+import { GAME, PHYSICS, EVOLUTION, evolutionForPlayingStage, type BuffType } from '../game/config';
 import { getMapDef } from '../maps/index';
 import { TerrainBuilder, updateCloudBlock } from '../entities/Terrain';
 import { Player } from '../entities/Player';
@@ -71,7 +71,7 @@ export class PlayScene extends Phaser.Scene {
     bg.setDepth(-10);
 
     this.physics.world.setBounds(0, 0, this.terrain.pixelWidth, this.terrain.pixelHeight);
-    this.physics.world.gravity.y = 990;
+    this.physics.world.gravity.y = PHYSICS.gravity;
 
     const evo = evolutionForPlayingStage(this.stage);
     this.player = new Player(

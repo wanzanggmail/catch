@@ -1,14 +1,14 @@
 /** Design-doc physics scaled to Phaser pixels (×50). Y+ is down in Phaser. */
 export const PHYSICS = {
-  gravity: 990,
-  moveSpeed: 275,
-  jumpForce: 600,
-  airControlFactor: 0.75,
-  maxFallSpeed: 750,
+  gravity: 820,
+  moveSpeed: 310,
+  jumpForce: 680,
+  airControlFactor: 0.9,
+  maxFallSpeed: 700,
   friction: 0.85,
-  variableJumpCut: 0.45,
-  coyoteTimeMs: 80,
-  jumpBufferMs: 100,
+  variableJumpCut: 0.55,
+  coyoteTimeMs: 180,
+  jumpBufferMs: 160,
 } as const;
 
 export const GAME = {
@@ -16,14 +16,14 @@ export const GAME = {
   height: 854,
   tileSize: 32,
   mapWidthTiles: 15,
-  /** Vertical maps are tall */
-  mapHeightTiles: 80,
-  playerHp: 3,
+  /** Vertical maps — shorter for easier climbs */
+  mapHeightTiles: 40,
+  playerHp: 5,
   bossHp: 5,
-  buffDurationMs: 8000,
-  cloudTriggerMs: 1500,
-  cloudRespawnMs: 3000,
-  checkpointGracePx: 40,
+  buffDurationMs: 10000,
+  cloudTriggerMs: 2800,
+  cloudRespawnMs: 2200,
+  checkpointGracePx: 64,
 } as const;
 
 export const EVOLUTION = {

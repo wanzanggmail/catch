@@ -45,7 +45,7 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
       bounceX: 0,
       bounceY: 0,
     });
-    this.nextAction = scene.time.now + 800;
+    this.nextAction = scene.time.now + 1400;
   }
 
   get isDead(): boolean {
@@ -87,7 +87,9 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
   updateAI(time: number, playerX: number): void {
     if (this.dead) return;
     const body = this.body as Phaser.Physics.Arcade.Body;
-    const speedMul = (this.phase === 3 ? 1.45 : this.phase === 2 ? 1.2 : 1) * this.difficulty;
+    // Soften difficulty scaling so early slots stay approachable
+    const diff = 0.75 + this.difficulty * 0.2;
+    const speedMul = (this.phase === 3 ? 1.25 : this.phase === 2 ? 1.1 : 1) * diff;
 
     if (this.aiState === 'slam') {
       // handled by tween-ish velocity
@@ -123,19 +125,19 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
   private performAction(time: number, playerX: number, speedMul: number): void {
     if (this.phase === 1) {
       this.dropProjectile(playerX);
-      this.nextAction = time + 1100 / speedMul;
+      this.nextAction = time + 1600 / speedMul;
     } else if (this.phase === 2) {
-      if (Math.random() < 0.55) {
+      if (Math.random() < 0.4) {
         this.startSlam();
-        this.nextAction = time + 1800 / speedMul;
+        this.nextAction = time + 2200 / speedMul;
       } else {
         this.dropProjectile(playerX);
-        this.nextAction = time + 900 / speedMul;
+        this.nextAction = time + 1300 / speedMul;
       }
     } else {
-      if (Math.random() < 0.45) this.startSlam();
-      else this.dropProjectile(playerX + (Math.random() - 0.5) * 80);
-      this.nextAction = time + 650 / speedMul;
+      if (Math.random() < 0.35) this.startSlam();
+      else this.dropProjectile(playerX + (Math.random() - 0.5) * 60);
+      this.nextAction = time + 950 / speedMul;
     }
   }
 
@@ -155,6 +157,6 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
   private startSlam(): void {
     this.aiState = 'slam';
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setVelocity(0, 420);
+    body.setVelocity(0, 320);
   }
 }
