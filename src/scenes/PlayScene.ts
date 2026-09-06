@@ -212,14 +212,36 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(900);
 
-    // Exit button → stage select
+    // Save + Exit buttons (top-right)
+    const saveBtn = this.add
+      .rectangle(GAME.width - 148, 52, 88, 32, 0x1b263b, 0.85)
+      .setStrokeStyle(2, 0x2a9d8f)
+      .setScrollFactor(0)
+      .setDepth(910)
+      .setInteractive({ useHandCursor: true });
+    this.add
+      .text(GAME.width - 148, 52, '저장', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '14px',
+        color: '#fefae0',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(911);
+    saveBtn.on('pointerover', () => saveBtn.setFillStyle(0x0d3b36, 0.9));
+    saveBtn.on('pointerout', () => saveBtn.setFillStyle(0x1b263b, 0.85));
+    saveBtn.on('pointerdown', () => {
+      saveManager.persist();
+      this.flashMsg('저장되었습니다');
+    });
+
     const exitBtn = this.add
       .rectangle(GAME.width - 52, 52, 88, 32, 0x1b263b, 0.85)
       .setStrokeStyle(2, 0xe63946)
       .setScrollFactor(0)
       .setDepth(910)
       .setInteractive({ useHandCursor: true });
-    const exitLabel = this.add
+    this.add
       .text(GAME.width - 52, 52, '나가기', {
         fontFamily: 'system-ui, sans-serif',
         fontSize: '14px',
@@ -231,10 +253,10 @@ export class PlayScene extends Phaser.Scene {
     exitBtn.on('pointerover', () => exitBtn.setFillStyle(0x3d0000, 0.9));
     exitBtn.on('pointerout', () => exitBtn.setFillStyle(0x1b263b, 0.85));
     exitBtn.on('pointerdown', () => {
+      saveManager.persist();
       this.ended = true;
       this.scene.start('StageSelect', { stage: this.stage });
     });
-    void exitLabel;
 
     this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`);
   }
