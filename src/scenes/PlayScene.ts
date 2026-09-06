@@ -10,7 +10,7 @@ import { BuffSystem } from '../systems/BuffSystem';
 import { InputAdapter } from '../systems/InputAdapter';
 import { TouchControls } from '../ui/TouchControls';
 import { saveManager } from '../systems/SaveManager';
-import { jumpSettings, type JumpBlocks } from '../systems/JumpSettings';
+import { sideJumpSettings, type SideBlocks } from '../systems/JumpSettings';
 
 export interface PlayData {
   stage: number;
@@ -259,9 +259,9 @@ export class PlayScene extends Phaser.Scene {
       this.scene.start('StageSelect', { stage: this.stage });
     });
 
-    // Jump height: 1 / 3 / 5 blocks
+    // Left/right jump travel: 1 / 3 / 5 tiles (height stays fixed)
     this.add
-      .text(GAME.width - 12, 78, '점프', {
+      .text(GAME.width - 12, 78, '좌우', {
         fontFamily: 'system-ui, sans-serif',
         fontSize: '11px',
         color: '#778da9',
@@ -270,17 +270,17 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(900);
 
-    const jumpOpts: JumpBlocks[] = [1, 3, 5];
-    const jumpButtons: { blocks: JumpBlocks; bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }[] = [];
-    const refreshJumpUi = () => {
-      for (const b of jumpButtons) {
-        const on = jumpSettings.blocks === b.blocks;
+    const sideOpts: SideBlocks[] = [1, 3, 5];
+    const sideButtons: { blocks: SideBlocks; bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }[] = [];
+    const refreshSideUi = () => {
+      for (const b of sideButtons) {
+        const on = sideJumpSettings.blocks === b.blocks;
         b.bg.setFillStyle(on ? 0x2a9d8f : 0x1b263b, on ? 0.95 : 0.85);
         b.bg.setStrokeStyle(2, on ? 0x95d5b2 : 0x415a77);
         b.label.setColor(on ? '#fefae0' : '#adb5bd');
       }
     };
-    jumpOpts.forEach((blocks, i) => {
+    sideOpts.forEach((blocks, i) => {
       const x = GAME.width - 148 + i * 48;
       const y = 108;
       const bg = this.add
@@ -299,13 +299,13 @@ export class PlayScene extends Phaser.Scene {
         .setScrollFactor(0)
         .setDepth(911);
       bg.on('pointerdown', () => {
-        jumpSettings.setBlocks(blocks);
-        refreshJumpUi();
-        this.flashMsg(`점프 ${blocks}블럭`);
+        sideJumpSettings.setBlocks(blocks);
+        refreshSideUi();
+        this.flashMsg(`좌우 ${blocks}칸`);
       });
-      jumpButtons.push({ blocks, bg, label });
+      sideButtons.push({ blocks, bg, label });
     });
-    refreshJumpUi();
+    refreshSideUi();
 
     this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`);
   }

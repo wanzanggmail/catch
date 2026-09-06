@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { EVOLUTION, PHYSICS, type EvolutionStage } from '../game/config';
 import type { BuffSystem } from '../systems/BuffSystem';
 import type { InputState } from '../systems/InputAdapter';
-import { jumpSettings } from '../systems/JumpSettings';
+import { sideJumpSettings } from '../systems/JumpSettings';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp: number;
@@ -114,8 +114,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (input.jumpPressed) this.jumpBuffer = PHYSICS.jumpBufferMs;
     else this.jumpBuffer -= delta;
 
-    const speed =
+    const groundSpeed =
       PHYSICS.moveSpeed * evo.speedMul * this.buffs.speedMul();
+    // Air move speed sets left/right jump travel (1 / 3 / 5 tiles)
+    const airSpeed =
+      sideJumpSettings.airMoveSpeed() * evo.speedMul * this.buffs.speedMul();
+    const speed = onFloor ? groundSpeed : airSpeed;
     const air = onFloor ? 1 : PHYSICS.airControlFactor;
 
     if (this.wallJumpLock <= 0) {
@@ -125,10 +129,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (this.onSlippery && onFloor) {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.12);
         } else if (onFloor) {
-          // Natural ground accel (not ice, not instant snap)
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.38);
         } else {
-          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, air);
+          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, Math.max(air, 0.85));
         }
       } else if (input.right) {
         this.facing = 1;
@@ -138,22 +141,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         } else if (onFloor) {
           body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, 0.38);
         } else {
-          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, air);
+          body.velocity.x = Phaser.Math.Linear(body.velocity.x, target, Math.max(air, 0.85));
         }
       } else if (onFloor) {
         if (this.onSlippery) {
           body.velocity.x *= 0.97;
           if (Math.abs(body.velocity.x) < 12) body.velocity.x = 0;
         } else {
-          // Soft brake — still grippy, not sticky
           body.velocity.x *= 0.72;
           if (Math.abs(body.velocity.x) < 18) body.setVelocityX(0);
         }
       }
     }
 
-    // Variable jump — height driven by jump-blocks setting (1 / 3 / 5)
-    const baseJump = jumpSettings.jumpForce();
+    // Fixed jump height (not tied to side-distance setting)
+    const baseJump = PHYSICS.jumpForce;
     if (this.jumpBuffer > 0 && this.coyote > 0) {
       const jump = baseJump * evo.jumpMul * this.buffs.jumpMul();
       body.setVelocityY(-jump);
