@@ -35,11 +35,11 @@ function emptyGrid(w: number, h: number): TileKind[][] {
 function setPlat(tiles: TileKind[][], x: number, y: number, w: number, kind: TileKind): void {
   for (let i = 0; i < w; i++) {
     const tx = x + i;
-    if (tyIn(tiles, tx, y)) tiles[y]![tx] = kind;
+    if (inBounds(tiles, tx, y)) tiles[y]![tx] = kind;
   }
 }
 
-function tyIn(tiles: TileKind[][], x: number, y: number): boolean {
+function inBounds(tiles: TileKind[][], x: number, y: number): boolean {
   return y >= 0 && y < tiles.length && x >= 0 && x < (tiles[0]?.length ?? 0);
 }
 
@@ -48,117 +48,130 @@ function clamp(v: number, min: number, max: number): number {
 }
 
 /**
- * Easy vertical climb: short rises, wide ledges, lots of checkpoints.
- * Seed bumped (v2) so old hard layouts are discarded.
+ * Normal vertical platformer layout (easy difficulty).
+ * Clear air gaps between ledges — not a solid brick column.
  */
 export function generateMap(stage: number, map: number): MapDef {
   const width = GAME.mapWidthTiles;
-  // Compact tower — much less climbing
-  const height = 40 + Math.floor(stage * 0.5) + Math.floor(map / 3);
-  const seed = stage * 1009 + map * 9176 + 2026; // v2 easy seed
+  // Playable height: room to climb without feeling endless
+  const height = 56 + stage * 2 + map;
+  const seed = stage * 7919 + map * 104729 + 7;
   const rnd = mulberry32(seed);
   const tiles = emptyGrid(width, height);
   const questionBuffs: Record<string, BuffType> = {};
 
-  // Solid floor
+  // Ground floor
   for (let x = 0; x < width; x++) {
     tiles[height - 1]![x] = 'brick';
   }
 
-  // Continuous side walls (safer — no fall-through gaps)
+  // Partial side walls (not a sealed tube)
   for (let y = 0; y < height; y++) {
-    tiles[y]![0] = 'brick';
-    tiles[y]![width - 1] = 'brick';
-  }
-
-  const spawnX = Math.floor(width / 2);
-  const spawnY = height - 4;
-  tiles[spawnY]![spawnX] = 'spawn';
-
-  // Very wide starter ledge
-  for (let x = spawnX - 4; x <= spawnX + 4; x++) {
-    if (x > 0 && x < width - 1) {
-      tiles[height - 3]![x] = 'brick';
-      tiles[spawnY]![x] = x === spawnX ? 'spawn' : 'empty';
-      tiles[spawnY - 1]![x] = 'empty';
+    if (y % 4 !== 2) {
+      tiles[y]![0] = 'brick';
+      tiles[y]![width - 1] = 'brick';
     }
   }
 
-  let y = height - 6;
-  const checkpointEvery = 6;
-  let lastCheckpoint = y;
-  let platIndex = 0;
+  // Spawn platform
+  const spawnX = Math.floor(width / 2);
+  const spawnY = height - 4;
+  for (let x = spawnX - 3; x <= spawnX + 3; x++) {
+    if (x > 0 && x < width - 1) {
+      tiles[height - 3]![x] = 'brick';
+      tiles[spawnY]![x] = 'empty';
+      tiles[spawnY - 1]![x] = 'empty';
+    }
+  }
+  tiles[spawnY]![spawnX] = 'spawn';
+
+  // Climbing ledges: main platform every 4 rows (jumpable gap)
+  let y = height - 7;
   let prevCenter = spawnX;
+  let side = -1;
+  let platIndex = 0;
+  const checkpointEvery = 3; // every 3 main platforms
 
-  while (y > 8) {
-    // Wide platforms: 5~8 tiles (easy to land)
-    const platW = 5 + Math.floor(rnd() * 4);
-    // Tiny horizontal shift so jumps are almost straight up
-    const maxShift = 2;
-    let center = clamp(
-      prevCenter + Math.floor((rnd() - 0.5) * 2 * maxShift),
-      2 + Math.floor(platW / 2),
-      width - 3 - Math.floor(platW / 2),
-    );
-    // Keep platforms near the middle corridor
-    center = clamp(center, Math.floor(width * 0.35), Math.floor(width * 0.65));
-
+  while (y > 10) {
+    side *= -1;
+    const platW = 3 + Math.floor(rnd() * 3); // 3~5
+    // Alternate sides with moderate offset (still reachable)
+    const target =
+      side < 0
+        ? 2 + Math.floor(rnd() * 3) + Math.floor(platW / 2)
+        : width - 3 - Math.floor(rnd() * 3) - Math.floor(platW / 2);
+    // Blend toward previous so gap isn't extreme
+    let center = Math.round(prevCenter * 0.35 + target * 0.65);
+    center = clamp(center, 2 + Math.floor(platW / 2), width - 3 - Math.floor(platW / 2));
     const x = clamp(center - Math.floor(platW / 2), 1, width - platW - 1);
 
     let kind: TileKind = 'brick';
     const roll = rnd();
-    // Almost no hazards on early stages
-    if (stage >= 5 && roll < 0.06) kind = 'cloud';
-    else if (stage >= 4 && roll < 0.03) kind = 'line';
-    else if (roll < 0.35) kind = 'question';
+    if (stage >= 5 && roll < 0.12) kind = 'cloud';
+    else if (stage >= 3 && roll < 0.08) kind = 'line';
+    else if (roll < 0.22) kind = 'question';
 
     setPlat(tiles, x, y, platW, kind);
 
     if (kind === 'question') {
       const qx = x + Math.floor(platW / 2);
-      const buff = BUFF_TYPES[Math.floor(rnd() * BUFF_TYPES.length)]!;
-      questionBuffs[`${qx},${y}`] = buff;
+      questionBuffs[`${qx},${y}`] = BUFF_TYPES[Math.floor(rnd() * BUFF_TYPES.length)]!;
       tiles[y]![qx] = 'question';
       for (let i = 0; i < platW; i++) {
         if (x + i !== qx) tiles[y]![x + i] = 'brick';
       }
     }
 
-    if (lastCheckpoint - y >= checkpointEvery) {
+    if (platIndex > 0 && platIndex % checkpointEvery === 0) {
       const cx = clamp(x + Math.floor(platW / 2), 1, width - 2);
-      if (tyIn(tiles, cx, y - 1)) tiles[y - 1]![cx] = 'checkpoint';
-      lastCheckpoint = y;
+      if (inBounds(tiles, cx, y - 1) && tiles[y - 1]![cx] === 'empty') {
+        tiles[y - 1]![cx] = 'checkpoint';
+      }
     }
 
-    // Always add a helper step between platforms
-    {
-      const stepY = y - 1;
-      const mid = Math.floor((prevCenter + center) / 2);
-      const stepX = clamp(mid - 1, 1, width - 4);
-      setPlat(tiles, stepX, stepY, 3, 'brick');
+    // Occasional mid helper (not every platform — keeps air gaps visible)
+    if (rnd() < 0.4) {
+      const midY = y - 2;
+      const midCenter = Math.round((prevCenter + center) / 2);
+      const midW = 2;
+      const midX = clamp(midCenter - 1, 1, width - midW - 1);
+      // Only place if cell is empty so we don't fill the shaft
+      if (tiles[midY]![midX] === 'empty') {
+        setPlat(tiles, midX, midY, midW, 'brick');
+      }
     }
 
-    // Rise of only 2 tiles — easy single jump
-    const rise = 2;
     prevCenter = center;
-    y -= rise;
+    // Main spacing: 4 tiles of rise → clear empty rows between ledges
+    y -= 4;
     platIndex++;
   }
 
-  // Boss arena — full-width safe floor
+  // Boss arena
   for (let x = 1; x < width - 1; x++) {
-    tiles[6]![x] = 'brick';
+    tiles[7]![x] = 'brick';
+    tiles[6]![x] = 'empty';
+    tiles[5]![x] = 'empty';
   }
-  setPlat(tiles, 2, 9, 5, 'brick');
-  setPlat(tiles, width - 7, 9, 5, 'brick');
-  setPlat(tiles, Math.floor(width / 2) - 3, 11, 7, 'brick');
+  // Approach platforms into arena
+  setPlat(tiles, 2, 11, 3, 'brick');
+  setPlat(tiles, width - 5, 11, 3, 'brick');
+  setPlat(tiles, Math.floor(width / 2) - 2, 14, 4, 'brick');
+  tiles[4]![Math.floor(width / 2)] = 'boss';
+
+  // Clear boss fight space
+  for (let by = 1; by <= 5; by++) {
+    for (let bx = 1; bx < width - 1; bx++) {
+      if (tiles[by]![bx] !== 'boss') tiles[by]![bx] = 'empty';
+    }
+  }
   tiles[4]![Math.floor(width / 2)] = 'boss';
 
   return { stage, map, width, height, tiles, questionBuffs };
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v2-s${stage}m${map}`;
+  return `v3-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
