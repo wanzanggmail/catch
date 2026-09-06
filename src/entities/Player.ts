@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { EVOLUTION, PHYSICS, type EvolutionStage } from '../game/config';
 import type { BuffSystem } from '../systems/BuffSystem';
 import type { InputState } from '../systems/InputAdapter';
+import { jumpSettings } from '../systems/JumpSettings';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp: number;
@@ -151,9 +152,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
-    // Variable jump
+    // Variable jump — height driven by jump-blocks setting (1 / 3 / 5)
+    const baseJump = jumpSettings.jumpForce();
     if (this.jumpBuffer > 0 && this.coyote > 0) {
-      const jump = PHYSICS.jumpForce * evo.jumpMul * this.buffs.jumpMul();
+      const jump = baseJump * evo.jumpMul * this.buffs.jumpMul();
       body.setVelocityY(-jump);
       this.jumping = true;
       this.jumpBuffer = 0;
@@ -164,7 +166,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.doubleJumpAvailable &&
       evo.doubleJump
     ) {
-      const jump = PHYSICS.jumpForce * 0.85 * evo.jumpMul * this.buffs.jumpMul();
+      const jump = baseJump * 0.85 * evo.jumpMul * this.buffs.jumpMul();
       body.setVelocityY(-jump);
       this.doubleJumpAvailable = false;
       this.jumping = true;
@@ -174,7 +176,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       onWall &&
       !onFloor
     ) {
-      const jump = PHYSICS.jumpForce * 0.9 * evo.jumpMul;
+      const jump = baseJump * 0.9 * evo.jumpMul;
       const dir = body.blocked.left || body.touching.left ? 1 : -1;
       body.setVelocityY(-jump);
       body.setVelocityX(dir * speed * 0.95);

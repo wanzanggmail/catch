@@ -10,6 +10,7 @@ import { BuffSystem } from '../systems/BuffSystem';
 import { InputAdapter } from '../systems/InputAdapter';
 import { TouchControls } from '../ui/TouchControls';
 import { saveManager } from '../systems/SaveManager';
+import { jumpSettings, type JumpBlocks } from '../systems/JumpSettings';
 
 export interface PlayData {
   stage: number;
@@ -257,6 +258,54 @@ export class PlayScene extends Phaser.Scene {
       this.ended = true;
       this.scene.start('StageSelect', { stage: this.stage });
     });
+
+    // Jump height: 1 / 3 / 5 blocks
+    this.add
+      .text(GAME.width - 12, 78, '점프', {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: '11px',
+        color: '#778da9',
+      })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(900);
+
+    const jumpOpts: JumpBlocks[] = [1, 3, 5];
+    const jumpButtons: { blocks: JumpBlocks; bg: Phaser.GameObjects.Rectangle; label: Phaser.GameObjects.Text }[] = [];
+    const refreshJumpUi = () => {
+      for (const b of jumpButtons) {
+        const on = jumpSettings.blocks === b.blocks;
+        b.bg.setFillStyle(on ? 0x2a9d8f : 0x1b263b, on ? 0.95 : 0.85);
+        b.bg.setStrokeStyle(2, on ? 0x95d5b2 : 0x415a77);
+        b.label.setColor(on ? '#fefae0' : '#adb5bd');
+      }
+    };
+    jumpOpts.forEach((blocks, i) => {
+      const x = GAME.width - 148 + i * 48;
+      const y = 108;
+      const bg = this.add
+        .rectangle(x, y, 44, 28, 0x1b263b, 0.85)
+        .setStrokeStyle(2, 0x415a77)
+        .setScrollFactor(0)
+        .setDepth(910)
+        .setInteractive({ useHandCursor: true });
+      const label = this.add
+        .text(x, y, `${blocks}칸`, {
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: '12px',
+          color: '#adb5bd',
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(911);
+      bg.on('pointerdown', () => {
+        jumpSettings.setBlocks(blocks);
+        refreshJumpUi();
+        this.flashMsg(`점프 ${blocks}블럭`);
+      });
+      jumpButtons.push({ blocks, bg, label });
+    });
+    refreshJumpUi();
 
     this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`);
   }
