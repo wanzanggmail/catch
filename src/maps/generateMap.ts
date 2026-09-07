@@ -98,25 +98,27 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[spawnY]![spawnX] = 'spawn';
 
-  // Climbing ledges: slightly easier spacing / wider pads
+  // Climbing ledges: clear left↔right zigzag
   let y = height - 7;
   let prevCenter = spawnX;
-  let side = -1;
+  let side = -1; // next platform goes left first
   let platIndex = 0;
-  const checkpointEvery = 2; // more frequent checkpoints
+  const checkpointEvery = 2;
+  const leftEdge = 1;
+  const rightEdge = width - 1;
 
   while (y > 10) {
     side *= -1;
-    const platW = 4 + Math.floor(rnd() * 3); // 4~6 (wider landing)
-    // Alternate sides but stay closer to previous ledge
-    const target =
-      side < 0
-        ? 2 + Math.floor(rnd() * 2) + Math.floor(platW / 2)
-        : width - 3 - Math.floor(rnd() * 2) - Math.floor(platW / 2);
-    // Stronger blend toward previous → smaller horizontal jumps
-    let center = Math.round(prevCenter * 0.55 + target * 0.45);
-    center = clamp(center, 2 + Math.floor(platW / 2), width - 3 - Math.floor(platW / 2));
-    const x = clamp(center - Math.floor(platW / 2), 1, width - platW - 1);
+    const platW = 4 + Math.floor(rnd() * 2); // 4~5
+    // Hard zigzag: snap to left or right wall band
+    let x: number;
+    if (side < 0) {
+      x = leftEdge + Math.floor(rnd() * 2); // 1 or 2
+    } else {
+      x = rightEdge - platW - Math.floor(rnd() * 2); // flush-ish right
+    }
+    x = clamp(x, 1, width - platW - 1);
+    const center = x + Math.floor(platW / 2);
 
     let kind: TileKind = 'brick';
     const roll = rnd();
@@ -142,7 +144,6 @@ export function generateMap(stage: number, map: number): MapDef {
       }
     }
 
-    // Fewer small rats
     if (platIndex >= 2 && platW >= 4 && kind !== 'cloud' && rnd() < 0.32) {
       const rx = x + Math.floor(platW / 2);
       ratSpawns.push({
@@ -153,19 +154,16 @@ export function generateMap(stage: number, map: number): MapDef {
       });
     }
 
-    // Helper mid-ledges more often (and a bit wider)
-    if (rnd() < 0.72) {
-      const midY = y - 2;
-      const midCenter = Math.round((prevCenter + center) / 2);
-      const midW = 3;
-      const midX = clamp(midCenter - 1, 1, width - midW - 1);
-      if (tiles[midY]![midX] === 'empty') {
-        setPlat(tiles, midX, midY, midW, 'brick');
-      }
+    // Center stepping stone between zigzag sides (keeps jumps reachable)
+    const midY = y - 2;
+    const midW = 3;
+    const midCenter = Math.round((prevCenter + center) / 2);
+    const midX = clamp(midCenter - Math.floor(midW / 2), 1, width - midW - 1);
+    if (tiles[midY]?.[midX] === 'empty') {
+      setPlat(tiles, midX, midY, midW, 'brick');
     }
 
     prevCenter = center;
-    // Main spacing: 3 tiles of rise (easier vertical jumps)
     y -= 3;
     platIndex++;
   }
@@ -237,7 +235,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v8-s${stage}m${map}`;
+  return `v9-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
