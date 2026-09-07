@@ -65,8 +65,8 @@ function clamp(v: number, min: number, max: number): number {
  */
 export function generateMap(stage: number, map: number): MapDef {
   const width = GAME.mapWidthTiles;
-  // Playable height: room to climb without feeling endless
-  const height = 56 + stage * 2 + map;
+  // Playable height: a bit shorter so climbs stay manageable
+  const height = 48 + stage * 2 + map;
   const seed = stage * 7919 + map * 104729 + 7;
   const rnd = mulberry32(seed);
   const tiles = emptyGrid(width, height);
@@ -98,31 +98,31 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[spawnY]![spawnX] = 'spawn';
 
-  // Climbing ledges: main platform every 4 rows (jumpable gap)
+  // Climbing ledges: slightly easier spacing / wider pads
   let y = height - 7;
   let prevCenter = spawnX;
   let side = -1;
   let platIndex = 0;
-  const checkpointEvery = 3; // every 3 main platforms
+  const checkpointEvery = 2; // more frequent checkpoints
 
   while (y > 10) {
     side *= -1;
-    const platW = 3 + Math.floor(rnd() * 3); // 3~5
-    // Alternate sides with moderate offset (still reachable)
+    const platW = 4 + Math.floor(rnd() * 3); // 4~6 (wider landing)
+    // Alternate sides but stay closer to previous ledge
     const target =
       side < 0
-        ? 2 + Math.floor(rnd() * 3) + Math.floor(platW / 2)
-        : width - 3 - Math.floor(rnd() * 3) - Math.floor(platW / 2);
-    // Blend toward previous so gap isn't extreme
-    let center = Math.round(prevCenter * 0.35 + target * 0.65);
+        ? 2 + Math.floor(rnd() * 2) + Math.floor(platW / 2)
+        : width - 3 - Math.floor(rnd() * 2) - Math.floor(platW / 2);
+    // Stronger blend toward previous → smaller horizontal jumps
+    let center = Math.round(prevCenter * 0.55 + target * 0.45);
     center = clamp(center, 2 + Math.floor(platW / 2), width - 3 - Math.floor(platW / 2));
     const x = clamp(center - Math.floor(platW / 2), 1, width - platW - 1);
 
     let kind: TileKind = 'brick';
     const roll = rnd();
-    if (stage >= 5 && roll < 0.12) kind = 'cloud';
-    else if (stage >= 5 && roll < 0.05) kind = 'line';
-    else if (roll < 0.34) kind = 'question';
+    if (stage >= 6 && roll < 0.08) kind = 'cloud';
+    else if (stage >= 6 && roll < 0.04) kind = 'line';
+    else if (roll < 0.4) kind = 'question';
 
     setPlat(tiles, x, y, platW, kind);
 
@@ -142,8 +142,8 @@ export function generateMap(stage: number, map: number): MapDef {
       }
     }
 
-    // Small 1-hit rats on many platforms (skip spawn-adjacent first ledge)
-    if (platIndex >= 1 && platW >= 3 && kind !== 'cloud' && rnd() < 0.55) {
+    // Fewer small rats
+    if (platIndex >= 2 && platW >= 4 && kind !== 'cloud' && rnd() < 0.32) {
       const rx = x + Math.floor(platW / 2);
       ratSpawns.push({
         x: rx,
@@ -153,21 +153,20 @@ export function generateMap(stage: number, map: number): MapDef {
       });
     }
 
-    // Occasional mid helper (not every platform — keeps air gaps visible)
-    if (rnd() < 0.4) {
+    // Helper mid-ledges more often (and a bit wider)
+    if (rnd() < 0.72) {
       const midY = y - 2;
       const midCenter = Math.round((prevCenter + center) / 2);
-      const midW = 2;
+      const midW = 3;
       const midX = clamp(midCenter - 1, 1, width - midW - 1);
-      // Only place if cell is empty so we don't fill the shaft
       if (tiles[midY]![midX] === 'empty') {
         setPlat(tiles, midX, midY, midW, 'brick');
       }
     }
 
     prevCenter = center;
-    // Main spacing: 4 tiles of rise → clear empty rows between ledges
-    y -= 4;
+    // Main spacing: 3 tiles of rise (easier vertical jumps)
+    y -= 3;
     platIndex++;
   }
 
@@ -219,11 +218,12 @@ export function generateMap(stage: number, map: number): MapDef {
   setPlat(tiles, 1, 6, 3, 'brick');
   setPlat(tiles, width - 4, 6, 3, 'brick');
 
-  // Approach platforms leading up into the hole
-  setPlat(tiles, mid - 2, 13, 5, 'brick');
-  setPlat(tiles, 2, 16, 4, 'brick');
-  setPlat(tiles, width - 6, 16, 4, 'brick');
-  setPlat(tiles, mid - 3, 19, 3, 'brick');
+  // Approach platforms leading up into the hole (wide & stacked)
+  setPlat(tiles, mid - 3, 13, 7, 'brick');
+  setPlat(tiles, mid - 2, 16, 5, 'brick');
+  setPlat(tiles, 2, 18, 5, 'brick');
+  setPlat(tiles, width - 7, 18, 5, 'brick');
+  setPlat(tiles, mid - 3, 20, 4, 'brick');
 
   // Clear boss fight space (y=1..5)
   for (let by = 1; by <= 5; by++) {
@@ -237,7 +237,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v7-s${stage}m${map}`;
+  return `v8-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
