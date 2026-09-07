@@ -75,7 +75,15 @@ export function evolutionForPlayingStage(stage: number): EvolutionStage {
   return 1;
 }
 
-export const BUFF_TYPES = ['speed', 'jump', 'shield', 'power'] as const;
+export const BUFF_TYPES = [
+  'speed',
+  'jump',
+  'shield',
+  'power',
+  'heal',
+  'feather',
+  'haste',
+] as const;
 export type BuffType = (typeof BUFF_TYPES)[number];
 
 export const STAGES = 6;

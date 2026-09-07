@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME, PHYSICS, EVOLUTION, evolutionForPlayingStage, type BuffType } from '../game/config';
+import { GAME, PHYSICS, EVOLUTION, evolutionForPlayingStage, BUFF_TYPES, type BuffType } from '../game/config';
 import { getMapDef } from '../maps/index';
 import { TerrainBuilder, updateCloudBlock } from '../entities/Terrain';
 import { Player } from '../entities/Player';
@@ -324,10 +324,19 @@ export class PlayScene extends Phaser.Scene {
     }
     const granted = this.terrain.hitQuestion(block, this.buffs, this.time.now);
     if (granted) {
+      this.applyItem(granted);
       this.spawnBuffFx(block.x, block.y - 24, granted);
       this.flashMsg(buffLabel(granted));
-      if (Math.random() < 0.35) saveManager.addInventoryBuff(granted);
+      if (Math.random() < 0.55) {
+        saveManager.addInventoryBuff(pickBagItem(granted));
+      }
       if (body.velocity.y < 0) body.setVelocityY(Math.min(body.velocity.y, -140));
+    }
+  }
+
+  private applyItem(type: BuffType): void {
+    if (type === 'heal') {
+      this.player.hp = Math.min(GAME.playerHp, this.player.hp + 1);
     }
   }
 
@@ -413,6 +422,7 @@ export class PlayScene extends Phaser.Scene {
       const b = saveManager.consumeInventoryBuff();
       if (b) {
         this.buffs.grant(b, this.time.now);
+        this.applyItem(b);
         this.flashMsg(`아이템 사용: ${buffLabel(b)}`);
       }
     }
@@ -473,8 +483,17 @@ export class PlayScene extends Phaser.Scene {
     for (const rat of this.rats) {
       if (rat.isDead || !rat.active) continue;
       if (Math.abs(rat.x - sx) < 42 && Math.abs(rat.y - sy) < 36) {
+        const rx = rat.x;
+        const ry = rat.y;
         rat.takeHit();
         this.flashMsg('쥐 처치!');
+        // Random item drop from rats
+        if (Math.random() < 0.65) {
+          const drop = this.buffs.grantRandom(this.time.now);
+          this.applyItem(drop);
+          this.spawnBuffFx(rx, ry - 16, drop);
+          this.flashMsg(buffLabel(drop));
+        }
       }
     }
 
@@ -532,5 +551,16 @@ function buffLabel(t: BuffType): string {
       return '실드!';
     case 'power':
       return '공격력 강화!';
+    case 'heal':
+      return '체력 회복!';
+    case 'feather':
+      return '깃털 — 활강!';
+    case 'haste':
+      return '신속 — 이속·공속 업!';
   }
+}
+
+function pickBagItem(exclude?: BuffType): BuffType {
+  const pool = BUFF_TYPES.filter((t) => t !== exclude);
+  return pool[Math.floor(Math.random() * pool.length)]!;
 }

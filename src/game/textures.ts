@@ -116,6 +116,9 @@ export function generateTextures(scene: Phaser.Scene): void {
     jump: 0x80ed99,
     shield: 0xf72585,
     power: 0xff9f1c,
+    heal: 0xff6b6b,
+    feather: 0xcddafd,
+    haste: 0xffd60a,
   };
   for (const [k, c] of Object.entries(buffColors)) {
     g.clear();

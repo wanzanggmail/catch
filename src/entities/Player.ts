@@ -83,7 +83,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   markAttacked(): void {
-    this.attackCooldown = 280;
+    this.attackCooldown = 280 * this.buffs.attackCooldownMul();
   }
 
   attackDamage(): number {
@@ -192,8 +192,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.jumping = false;
     }
 
-    // Glide
-    if (evo.glide && input.jump && !onFloor && body.velocity.y > 60) {
+    // Glide — evolution or feather buff
+    if (
+      (evo.glide || this.buffs.canGlide()) &&
+      input.jump &&
+      !onFloor &&
+      body.velocity.y > 60
+    ) {
       body.setVelocityY(Math.min(body.velocity.y, 120));
       this.setAlpha(Math.max(this.alpha, 0.85));
     }

@@ -45,7 +45,7 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
       bounceX: 0,
       bounceY: 0,
     });
-    this.nextAction = scene.time.now + 1400;
+    this.nextAction = scene.time.now + 2000;
   }
 
   get isDead(): boolean {
@@ -88,14 +88,14 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
     if (this.dead) return;
     const body = this.body as Phaser.Physics.Arcade.Body;
     // Soften difficulty scaling so early slots stay approachable
-    const diff = 0.75 + this.difficulty * 0.2;
-    const speedMul = (this.phase === 3 ? 1.25 : this.phase === 2 ? 1.1 : 1) * diff;
+    const diff = 0.65 + this.difficulty * 0.12;
+    const speedMul = (this.phase === 3 ? 1.15 : this.phase === 2 ? 1.05 : 1) * diff;
 
     if (this.aiState === 'slam') {
       // handled by tween-ish velocity
       if (body.y > this.homeY + 90) {
         this.aiState = 'recover';
-        body.setVelocity(0, -220);
+        body.setVelocity(0, -160);
       }
       return;
     }
@@ -104,18 +104,18 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
         this.y = this.homeY;
         body.setVelocity(0, 0);
         this.aiState = 'strafe';
-        this.nextAction = time + 600 / speedMul;
+        this.nextAction = time + 900 / speedMul;
       }
       return;
     }
 
-    // Strafe
-    body.setVelocityX(this.dir * 90 * speedMul);
+    // Strafe — slower than before
+    body.setVelocityX(this.dir * 48 * speedMul);
     if (this.x < this.arenaLeft) this.dir = 1;
     if (this.x > this.arenaRight) this.dir = -1;
 
     // Face player occasionally
-    if (Math.random() < 0.01) this.dir = playerX < this.x ? -1 : 1;
+    if (Math.random() < 0.008) this.dir = playerX < this.x ? -1 : 1;
 
     if (time >= this.nextAction) {
       this.performAction(time, playerX, speedMul);
@@ -125,19 +125,19 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
   private performAction(time: number, playerX: number, speedMul: number): void {
     if (this.phase === 1) {
       this.dropProjectile(playerX);
-      this.nextAction = time + 1600 / speedMul;
+      this.nextAction = time + 2200 / speedMul;
     } else if (this.phase === 2) {
-      if (Math.random() < 0.4) {
+      if (Math.random() < 0.35) {
         this.startSlam();
-        this.nextAction = time + 2200 / speedMul;
+        this.nextAction = time + 2800 / speedMul;
       } else {
         this.dropProjectile(playerX);
-        this.nextAction = time + 1300 / speedMul;
+        this.nextAction = time + 1800 / speedMul;
       }
     } else {
-      if (Math.random() < 0.35) this.startSlam();
+      if (Math.random() < 0.3) this.startSlam();
       else this.dropProjectile(playerX + (Math.random() - 0.5) * 60);
-      this.nextAction = time + 950 / speedMul;
+      this.nextAction = time + 1400 / speedMul;
     }
   }
 
@@ -157,6 +157,6 @@ export class BossRat extends Phaser.Physics.Arcade.Sprite {
   private startSlam(): void {
     this.aiState = 'slam';
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setVelocity(0, 320);
+    body.setVelocity(0, 240);
   }
 }

@@ -120,7 +120,7 @@ export function generateMap(stage: number, map: number): MapDef {
     const roll = rnd();
     if (stage >= 5 && roll < 0.12) kind = 'cloud';
     else if (stage >= 5 && roll < 0.05) kind = 'line';
-    else if (roll < 0.22) kind = 'question';
+    else if (roll < 0.34) kind = 'question';
 
     setPlat(tiles, x, y, platW, kind);
 
@@ -193,7 +193,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v4-s${stage}m${map}`;
+  return `v5-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {

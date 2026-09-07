@@ -134,9 +134,8 @@ export class TerrainBuilder {
     block.setData('used', true);
     block.setTexture('question_empty');
     block.refreshBody();
-    const type = block.getData('buff') as BuffType;
-    buffs.grant(type, now);
-    return type;
+    // Always randomize on hit for more variety each play
+    return buffs.grantRandom(now);
   }
 }
 
