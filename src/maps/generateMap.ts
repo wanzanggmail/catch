@@ -8,7 +8,9 @@ export type TileKind =
   | 'cloud'
   | 'checkpoint'
   | 'spawn'
-  | 'boss';
+  | 'boss'
+  | 'hole'
+  | 'cave';
 
 export interface RatSpawn {
   /** Tile coords — rat stands on platform at (x, y) */
@@ -169,31 +171,73 @@ export function generateMap(stage: number, map: number): MapDef {
     platIndex++;
   }
 
-  // Boss arena
-  for (let x = 1; x < width - 1; x++) {
-    tiles[7]![x] = 'brick';
-    tiles[6]![x] = 'empty';
-    tiles[5]![x] = 'empty';
-  }
-  // Approach platforms into arena
-  setPlat(tiles, 2, 11, 3, 'brick');
-  setPlat(tiles, width - 5, 11, 3, 'brick');
-  setPlat(tiles, Math.floor(width / 2) - 2, 14, 4, 'brick');
-  tiles[4]![Math.floor(width / 2)] = 'boss';
+  // Boss arena + enterable cave hole at the end of the climb
+  const mid = Math.floor(width / 2);
+  const holeLeft = mid - 1;
+  const holeRight = mid + 1; // 3-tile wide hole
 
-  // Clear boss fight space
-  for (let by = 1; by <= 5; by++) {
-    for (let bx = 1; bx < width - 1; bx++) {
-      if (tiles[by]![bx] !== 'boss') tiles[by]![bx] = 'empty';
+  // Clear any leftover climb platforms that might clog the shaft
+  for (let cy = 7; cy <= 14; cy++) {
+    for (let cx = 1; cx < width - 1; cx++) {
+      const t = tiles[cy]![cx];
+      if (t === 'brick' || t === 'question' || t === 'cloud' || t === 'line' || t === 'checkpoint') {
+        tiles[cy]![cx] = 'empty';
+      }
     }
   }
-  tiles[4]![Math.floor(width / 2)] = 'boss';
+  // Drop rats that would spawn in the cleared zone
+  for (let i = ratSpawns.length - 1; i >= 0; i--) {
+    const r = ratSpawns[i]!;
+    if (r.y >= 6 && r.y <= 15) ratSpawns.splice(i, 1);
+  }
+
+  // Thick cave roof (y=8..9) with a passage in the center
+  for (let x = 1; x < width - 1; x++) {
+    const inHole = x >= holeLeft && x <= holeRight;
+    tiles[8]![x] = inHole ? 'empty' : 'cave';
+    tiles[9]![x] = inHole ? 'empty' : 'cave';
+  }
+
+  // Hole mouth at y=10 — dark opening you climb into (no collision)
+  for (let x = 1; x < width - 1; x++) {
+    const inHole = x >= holeLeft && x <= holeRight;
+    tiles[10]![x] = inHole ? 'hole' : 'cave';
+  }
+  // Cave lip framing the mouth
+  tiles[10]![holeLeft - 1] = 'cave';
+  tiles[10]![holeRight + 1] = 'cave';
+  tiles[11]![holeLeft - 1] = 'cave';
+  tiles[11]![holeRight + 1] = 'cave';
+
+  // Arena floor above the hole (y=7) — solid except the hole gap
+  for (let x = 1; x < width - 1; x++) {
+    const inHole = x >= holeLeft && x <= holeRight;
+    tiles[7]![x] = inHole ? 'hole' : 'brick';
+  }
+
+  // Landing pads inside the arena after climbing through
+  setPlat(tiles, 1, 6, 3, 'brick');
+  setPlat(tiles, width - 4, 6, 3, 'brick');
+
+  // Approach platforms leading up into the hole
+  setPlat(tiles, mid - 2, 13, 5, 'brick');
+  setPlat(tiles, 2, 16, 4, 'brick');
+  setPlat(tiles, width - 6, 16, 4, 'brick');
+  setPlat(tiles, mid - 3, 19, 3, 'brick');
+
+  // Clear boss fight space (y=1..5)
+  for (let by = 1; by <= 5; by++) {
+    for (let bx = 1; bx < width - 1; bx++) {
+      tiles[by]![bx] = 'empty';
+    }
+  }
+  tiles[3]![mid] = 'boss';
 
   return { stage, map, width, height, tiles, questionBuffs, ratSpawns };
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v5-s${stage}m${map}`;
+  return `v7-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {

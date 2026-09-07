@@ -13,6 +13,9 @@ export class TerrainBuilder {
   questions: Phaser.Physics.Arcade.StaticGroup;
   clouds: Phaser.Physics.Arcade.StaticGroup;
   checkpoints: Phaser.Physics.Arcade.StaticGroup;
+  holes: Phaser.GameObjects.Group;
+  /** Center of the enterable hole mouth (world px), if any */
+  holeMouth: { x: number; y: number } | null = null;
   def: MapDef;
   pixelWidth: number;
   pixelHeight: number;
@@ -27,10 +30,15 @@ export class TerrainBuilder {
     this.questions = scene.physics.add.staticGroup();
     this.clouds = scene.physics.add.staticGroup();
     this.checkpoints = scene.physics.add.staticGroup();
+    this.holes = scene.add.group();
   }
 
   build(): { spawn: { x: number; y: number }; boss: { x: number; y: number } } {
     const ts = GAME.tileSize;
+    let holeSumX = 0;
+    let holeSumY = 0;
+    let holeCount = 0;
+    let mouthY = -1;
     for (let y = 0; y < this.def.height; y++) {
       for (let x = 0; x < this.def.width; x++) {
         const kind = this.def.tiles[y]![x] as TileKind;
@@ -39,6 +47,24 @@ export class TerrainBuilder {
         switch (kind) {
           case 'brick':
             this.addSolid(wx, wy, 'brick');
+            break;
+          case 'cave':
+            this.addSolid(wx, wy, 'cave');
+            break;
+          case 'hole':
+            this.addHole(wx, wy);
+            // Prefer the lowest hole row as the "mouth" (approach from below)
+            if (y >= mouthY) {
+              if (y > mouthY) {
+                mouthY = y;
+                holeSumX = 0;
+                holeSumY = 0;
+                holeCount = 0;
+              }
+              holeSumX += wx;
+              holeSumY += wy;
+              holeCount++;
+            }
             break;
           case 'line':
             this.addLine(wx, wy);
@@ -56,6 +82,13 @@ export class TerrainBuilder {
             break;
         }
       }
+    }
+
+    if (holeCount > 0) {
+      this.holeMouth = {
+        x: holeSumX / holeCount,
+        y: holeSumY / holeCount,
+      };
     }
 
     const spawnM = findMarker(this.def, 'spawn') ?? {
@@ -83,8 +116,13 @@ export class TerrainBuilder {
   private addSolid(x: number, y: number, tex: string): Phaser.Physics.Arcade.Sprite {
     const s = this.solids.create(x, y, tex) as Phaser.Physics.Arcade.Sprite;
     s.refreshBody();
-    s.setData('block', 'brick');
+    s.setData('block', tex === 'cave' ? 'cave' : 'brick');
     return s;
+  }
+
+  private addHole(x: number, y: number): void {
+    const img = this.scene.add.image(x, y, 'hole').setDepth(2);
+    this.holes.add(img);
   }
 
   private addLine(x: number, y: number): void {

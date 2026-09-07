@@ -43,6 +43,8 @@ export class PlayScene extends Phaser.Scene {
   private ended = false;
   private slash?: Phaser.GameObjects.Sprite;
   private difficulty = 1;
+  private holeHint?: Phaser.GameObjects.Text;
+  private enteredHole = false;
 
   constructor() {
     super('Play');
@@ -52,6 +54,7 @@ export class PlayScene extends Phaser.Scene {
     this.stage = data.stage ?? 1;
     this.map = data.map ?? 1;
     this.ended = false;
+    this.enteredHole = false;
     this.buffs.clear();
   }
 
@@ -308,7 +311,40 @@ export class PlayScene extends Phaser.Scene {
     });
     refreshSideUi();
 
-    this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`);
+    if (this.terrain.holeMouth) {
+      const hx = this.terrain.holeMouth.x;
+      const hy = this.terrain.holeMouth.y;
+      this.holeHint = this.add
+        .text(hx, hy + 28, '↑ 구멍으로 들어가기', {
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: '13px',
+          color: '#ffe8a3',
+          stroke: '#000',
+          strokeThickness: 3,
+        })
+        .setOrigin(0.5)
+        .setDepth(40)
+        .setAlpha(0.9);
+      this.tweens.add({
+        targets: this.holeHint,
+        alpha: 0.35,
+        y: hy + 34,
+        duration: 900,
+        yoyo: true,
+        repeat: -1,
+      });
+      this.terrain.holes.getChildren().forEach((obj) => {
+        this.tweens.add({
+          targets: obj,
+          alpha: 0.7,
+          duration: 700,
+          yoyo: true,
+          repeat: -1,
+        });
+      });
+    }
+
+    this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기 구멍으로 들어가 거대 쥐를 처치하라!`);
   }
 
   private handleQuestionHit(
@@ -425,6 +461,27 @@ export class PlayScene extends Phaser.Scene {
         this.buffs.grant(b, this.time.now);
         this.applyItem(b);
         this.flashMsg(`아이템 사용: ${buffLabel(b)}`);
+      }
+    }
+
+    // Near hole mouth: show hint; entering shaft announces once
+    if (this.terrain.holeMouth && this.holeHint) {
+      const hx = this.terrain.holeMouth.x;
+      const hy = this.terrain.holeMouth.y;
+      const near =
+        Math.abs(this.player.x - hx) < GAME.tileSize * 2.2 &&
+        this.player.y > hy &&
+        this.player.y < hy + GAME.tileSize * 5;
+      this.holeHint.setVisible(near && !this.enteredHole);
+      if (
+        !this.enteredHole &&
+        Math.abs(this.player.x - hx) < GAME.tileSize * 1.6 &&
+        this.player.y < hy + GAME.tileSize * 0.5 &&
+        this.player.y > hy - GAME.tileSize * 4
+      ) {
+        this.enteredHole = true;
+        this.holeHint.setVisible(false);
+        this.flashMsg('구멍 진입! 거대 쥐의 동굴');
       }
     }
 
