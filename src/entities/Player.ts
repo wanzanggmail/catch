@@ -6,6 +6,7 @@ import { sideJumpSettings } from '../systems/JumpSettings';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   hp: number;
+  maxHp: number;
   evolution: EvolutionStage;
   private buffs: BuffSystem;
   private coyote = 0;
@@ -30,6 +31,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.evolution = evolution;
     this.buffs = buffs;
     this.hp = hp;
+    this.maxHp = hp;
     scene.add.existing(this);
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(false);
@@ -72,6 +74,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setVelocityY(-280);
     this.setVelocityX(-this.facing * 180);
     return this.hp <= 0;
+  }
+
+  /** Checkpoint: gain 1 life (max + current). */
+  gainLife(): void {
+    this.maxHp += 1;
+    this.hp += 1;
+  }
+
+  /** Heal up to current max. */
+  heal(amount = 1): void {
+    this.hp = Math.min(this.maxHp, this.hp + amount);
   }
 
   getFacing(): number {

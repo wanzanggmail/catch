@@ -126,7 +126,8 @@ export class PlayScene extends Phaser.Scene {
         cp.setData('activated', true);
         cp.setTint(0xffd166);
         this.checkpoint = { x: cp.x, y: cp.y - 20 };
-        this.flashMsg('체크포인트!');
+        this.player.gainLife();
+        this.flashMsg(`체크포인트! 목숨 +1 (HP ${this.player.hp})`);
       }
     });
 
@@ -336,7 +337,7 @@ export class PlayScene extends Phaser.Scene {
 
   private applyItem(type: BuffType): void {
     if (type === 'heal') {
-      this.player.hp = Math.min(GAME.playerHp, this.player.hp + 1);
+      this.player.heal(1);
     }
   }
 
@@ -444,7 +445,7 @@ export class PlayScene extends Phaser.Scene {
     // HUD
     const evo = EVOLUTION[this.player.evolution];
     this.hud.setText(
-      `HP ${this.player.hp}/${GAME.playerHp}  ·  보스 ${this.boss.isDead ? 0 : this.boss.hp}/${GAME.bossHp}  ·  ${evo.label}`,
+      `HP ${this.player.hp}/${this.player.maxHp}  ·  보스 ${this.boss.isDead ? 0 : this.boss.hp}/${GAME.bossHp}  ·  ${evo.label}`,
     );
     const buffs = this.buffs.list();
     const inv = saveManager.getActive().inventoryBuffs;
