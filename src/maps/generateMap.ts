@@ -76,7 +76,8 @@ export function generateMap(stage: number, map: number): MapDef {
   // Extra ease on mid/late maps (esp. stage 4 map 3+)
   const softZigzag = stage >= 4 || map >= 3;
   const widePads = stage >= 4 || map >= 3;
-  const ratChance = stage >= 4 ? 0.18 : 0.28;
+  const ratChance = stage >= 4 ? 0.1 : map >= 3 ? 0.18 : 0.28;
+  const maxRats = stage >= 4 ? 2 : map >= 3 ? 3 : 5;
 
   // Ground floor
   for (let x = 0; x < width; x++) {
@@ -150,7 +151,13 @@ export function generateMap(stage: number, map: number): MapDef {
       }
     }
 
-    if (platIndex >= 2 && platW >= 4 && kind !== 'cloud' && rnd() < ratChance) {
+    if (
+      platIndex >= 2 &&
+      platW >= 4 &&
+      kind !== 'cloud' &&
+      ratSpawns.length < maxRats &&
+      rnd() < ratChance
+    ) {
       const rx = x + Math.floor(platW / 2);
       ratSpawns.push({
         x: rx,
@@ -250,7 +257,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v10-s${stage}m${map}`;
+  return `v11-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
