@@ -65,13 +65,18 @@ function clamp(v: number, min: number, max: number): number {
  */
 export function generateMap(stage: number, map: number): MapDef {
   const width = GAME.mapWidthTiles;
-  // Playable height: a bit shorter so climbs stay manageable
-  const height = 48 + stage * 2 + map;
+  // Later stages used to grow too tall — keep climbs shorter
+  const height = 46 + Math.min(stage, 3) + Math.min(map, 2);
   const seed = stage * 7919 + map * 104729 + 7;
   const rnd = mulberry32(seed);
   const tiles = emptyGrid(width, height);
   const questionBuffs: Record<string, BuffType> = {};
   const ratSpawns: RatSpawn[] = [];
+
+  // Extra ease on mid/late maps (esp. stage 4 map 3+)
+  const softZigzag = stage >= 4 || map >= 3;
+  const widePads = stage >= 4 || map >= 3;
+  const ratChance = stage >= 4 ? 0.18 : 0.28;
 
   // Ground floor
   for (let x = 0; x < width; x++) {
@@ -98,7 +103,7 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[spawnY]![spawnX] = 'spawn';
 
-  // Climbing ledges: clear left↔right zigzag
+  // Climbing ledges: left↔right zigzag (softened on harder stages)
   let y = height - 7;
   let prevCenter = spawnX;
   let side = -1; // next platform goes left first
@@ -109,13 +114,14 @@ export function generateMap(stage: number, map: number): MapDef {
 
   while (y > 10) {
     side *= -1;
-    const platW = 4 + Math.floor(rnd() * 2); // 4~5
-    // Hard zigzag: snap to left or right wall band
+    const platW = widePads ? 5 + Math.floor(rnd() * 2) : 4 + Math.floor(rnd() * 2); // 5~6 or 4~5
+    // Zigzag: left / right bands (soft = less flush to wall → shorter jumps)
     let x: number;
     if (side < 0) {
-      x = leftEdge + Math.floor(rnd() * 2); // 1 or 2
+      x = softZigzag ? leftEdge + 1 + Math.floor(rnd() * 2) : leftEdge + Math.floor(rnd() * 2);
     } else {
-      x = rightEdge - platW - Math.floor(rnd() * 2); // flush-ish right
+      const inset = softZigzag ? 2 + Math.floor(rnd() * 2) : Math.floor(rnd() * 2);
+      x = rightEdge - platW - inset;
     }
     x = clamp(x, 1, width - platW - 1);
     const center = x + Math.floor(platW / 2);
@@ -124,7 +130,7 @@ export function generateMap(stage: number, map: number): MapDef {
     const roll = rnd();
     if (stage >= 6 && roll < 0.08) kind = 'cloud';
     else if (stage >= 6 && roll < 0.04) kind = 'line';
-    else if (roll < 0.4) kind = 'question';
+    else if (roll < 0.45) kind = 'question';
 
     setPlat(tiles, x, y, platW, kind);
 
@@ -144,7 +150,7 @@ export function generateMap(stage: number, map: number): MapDef {
       }
     }
 
-    if (platIndex >= 2 && platW >= 4 && kind !== 'cloud' && rnd() < 0.32) {
+    if (platIndex >= 2 && platW >= 4 && kind !== 'cloud' && rnd() < ratChance) {
       const rx = x + Math.floor(platW / 2);
       ratSpawns.push({
         x: rx,
@@ -154,17 +160,26 @@ export function generateMap(stage: number, map: number): MapDef {
       });
     }
 
-    // Center stepping stone between zigzag sides (keeps jumps reachable)
+    // Center stepping stone between zigzag sides (wider on soft maps)
     const midY = y - 2;
-    const midW = 3;
+    const midW = softZigzag ? 4 : 3;
     const midCenter = Math.round((prevCenter + center) / 2);
     const midX = clamp(midCenter - Math.floor(midW / 2), 1, width - midW - 1);
     if (tiles[midY]?.[midX] === 'empty') {
       setPlat(tiles, midX, midY, midW, 'brick');
     }
+    // Stage 4 map 3+: extra helper one row above the main ledge
+    if (softZigzag && rnd() < 0.55) {
+      const helpY = y - 1;
+      const helpW = 3;
+      const helpX = clamp(center - 1, 1, width - helpW - 1);
+      if (tiles[helpY]?.[helpX] === 'empty') {
+        setPlat(tiles, helpX, helpY, helpW, 'brick');
+      }
+    }
 
     prevCenter = center;
-    y -= 3;
+    y -= softZigzag ? 2 : 3; // shorter vertical gaps on soft maps
     platIndex++;
   }
 
@@ -235,7 +250,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v9-s${stage}m${map}`;
+  return `v10-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
