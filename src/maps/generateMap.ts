@@ -104,19 +104,19 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[spawnY]![spawnX] = 'spawn';
 
-  // Climbing ledges: left↔right zigzag (softened on harder stages)
+  // Climbing ledges: pure left↔right zigzag, one pad per row, wide air gap
   let y = height - 7;
-  let prevCenter = spawnX;
   let side = -1; // next platform goes left first
   let platIndex = 0;
   const checkpointEvery = 2;
+  const step = 4; // empty rows between ledges (no vertical stacking)
   const leftEdge = 1;
   const rightEdge = width - 1;
 
   while (y > 10) {
     side *= -1;
     const platW = widePads ? 5 + Math.floor(rnd() * 2) : 4 + Math.floor(rnd() * 2); // 5~6 or 4~5
-    // Zigzag: left / right bands (soft = less flush to wall → shorter jumps)
+    // Zigzag only — never place pads on consecutive rows
     let x: number;
     if (side < 0) {
       x = softZigzag ? leftEdge + 1 + Math.floor(rnd() * 2) : leftEdge + Math.floor(rnd() * 2);
@@ -125,7 +125,6 @@ export function generateMap(stage: number, map: number): MapDef {
       x = rightEdge - platW - inset;
     }
     x = clamp(x, 1, width - platW - 1);
-    const center = x + Math.floor(platW / 2);
 
     let kind: TileKind = 'brick';
     const roll = rnd();
@@ -167,26 +166,7 @@ export function generateMap(stage: number, map: number): MapDef {
       });
     }
 
-    // Center stepping stone between zigzag sides (wider on soft maps)
-    const midY = y - 2;
-    const midW = softZigzag ? 4 : 3;
-    const midCenter = Math.round((prevCenter + center) / 2);
-    const midX = clamp(midCenter - Math.floor(midW / 2), 1, width - midW - 1);
-    if (tiles[midY]?.[midX] === 'empty') {
-      setPlat(tiles, midX, midY, midW, 'brick');
-    }
-    // Stage 4 map 3+: extra helper one row above the main ledge
-    if (softZigzag && rnd() < 0.55) {
-      const helpY = y - 1;
-      const helpW = 3;
-      const helpX = clamp(center - 1, 1, width - helpW - 1);
-      if (tiles[helpY]?.[helpX] === 'empty') {
-        setPlat(tiles, helpX, helpY, helpW, 'brick');
-      }
-    }
-
-    prevCenter = center;
-    y -= softZigzag ? 2 : 3; // shorter vertical gaps on soft maps
+    y -= step;
     platIndex++;
   }
 
@@ -238,12 +218,10 @@ export function generateMap(stage: number, map: number): MapDef {
   setPlat(tiles, 1, 6, 3, 'brick');
   setPlat(tiles, width - 4, 6, 3, 'brick');
 
-  // Approach platforms leading up into the hole (wide & stacked)
-  setPlat(tiles, mid - 3, 13, 7, 'brick');
-  setPlat(tiles, mid - 2, 16, 5, 'brick');
-  setPlat(tiles, 2, 18, 5, 'brick');
-  setPlat(tiles, width - 7, 18, 5, 'brick');
-  setPlat(tiles, mid - 3, 20, 4, 'brick');
+  // Approach to hole: zigzag steps with open air (no stacked columns)
+  setPlat(tiles, 2, 20, 5, 'brick');
+  setPlat(tiles, width - 7, 16, 5, 'brick');
+  setPlat(tiles, mid - 3, 12, 7, 'brick');
 
   // Clear boss fight space (y=1..5)
   for (let by = 1; by <= 5; by++) {
@@ -257,7 +235,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v11-s${stage}m${map}`;
+  return `v12-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
