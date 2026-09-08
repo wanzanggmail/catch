@@ -175,38 +175,44 @@ export function generateMap(stage: number, map: number): MapDef {
   const holeLeft = mid - 1;
   const holeRight = mid + 1; // 3-tile wide hole
 
-  // Clear any leftover climb platforms that might clog the shaft
-  for (let cy = 7; cy <= 14; cy++) {
+  // Clear climb leftovers so the route to the hole stays open
+  for (let cy = 7; cy <= 24; cy++) {
     for (let cx = 1; cx < width - 1; cx++) {
       const t = tiles[cy]![cx];
-      if (t === 'brick' || t === 'question' || t === 'cloud' || t === 'line' || t === 'checkpoint') {
+      if (
+        t === 'brick' ||
+        t === 'question' ||
+        t === 'cloud' ||
+        t === 'line' ||
+        t === 'checkpoint' ||
+        t === 'cave' ||
+        t === 'hole'
+      ) {
         tiles[cy]![cx] = 'empty';
       }
     }
   }
-  // Drop rats that would spawn in the cleared zone
   for (let i = ratSpawns.length - 1; i >= 0; i--) {
     const r = ratSpawns[i]!;
-    if (r.y >= 6 && r.y <= 15) ratSpawns.splice(i, 1);
+    if (r.y >= 6 && r.y <= 24) ratSpawns.splice(i, 1);
   }
 
-  // Thick cave roof (y=8..9) with a passage in the center
+  // Cave roof (y=8..9) with an open shaft in the center
   for (let x = 1; x < width - 1; x++) {
     const inHole = x >= holeLeft && x <= holeRight;
     tiles[8]![x] = inHole ? 'empty' : 'cave';
     tiles[9]![x] = inHole ? 'empty' : 'cave';
   }
 
-  // Hole mouth at y=10 — dark opening you climb into (no collision)
+  // Hole mouth at y=10 — only the opening is hole; sides are cave frame
   for (let x = 1; x < width - 1; x++) {
     const inHole = x >= holeLeft && x <= holeRight;
     tiles[10]![x] = inHole ? 'hole' : 'cave';
   }
-  // Cave lip framing the mouth
-  tiles[10]![holeLeft - 1] = 'cave';
-  tiles[10]![holeRight + 1] = 'cave';
-  tiles[11]![holeLeft - 1] = 'cave';
-  tiles[11]![holeRight + 1] = 'cave';
+  // Keep y=11 fully open under the mouth (no cave pillars blocking the climb-in)
+  for (let x = holeLeft; x <= holeRight; x++) {
+    tiles[11]![x] = 'empty';
+  }
 
   // Arena floor above the hole (y=7) — solid except the hole gap
   for (let x = 1; x < width - 1; x++) {
@@ -218,10 +224,11 @@ export function generateMap(stage: number, map: number): MapDef {
   setPlat(tiles, 1, 6, 3, 'brick');
   setPlat(tiles, width - 4, 6, 3, 'brick');
 
-  // Approach to hole: zigzag steps with open air (no stacked columns)
-  setPlat(tiles, 2, 20, 5, 'brick');
-  setPlat(tiles, width - 7, 16, 5, 'brick');
-  setPlat(tiles, mid - 3, 12, 7, 'brick');
+  // Open zigzag path up to the hole (wide gaps, never a sealed row)
+  setPlat(tiles, 1, 23, 5, 'brick'); // left
+  setPlat(tiles, width - 6, 19, 5, 'brick'); // right
+  setPlat(tiles, 1, 15, 5, 'brick'); // left
+  setPlat(tiles, mid - 2, 12, 5, 'brick'); // center pad directly under the hole
 
   // Clear boss fight space (y=1..5)
   for (let by = 1; by <= 5; by++) {
@@ -235,7 +242,7 @@ export function generateMap(stage: number, map: number): MapDef {
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v12-s${stage}m${map}`;
+  return `v13-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
