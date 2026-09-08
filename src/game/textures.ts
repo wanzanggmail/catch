@@ -46,6 +46,29 @@ export function generateTextures(scene: Phaser.Scene): void {
     gg.fillCircle(16, 20, 9);
   });
 
+  // Cave wall brick (darker)
+  block('cave', 0x3d405b, (gg) => {
+    gg.fillStyle(0x2b2d42, 0.5);
+    gg.fillCircle(8, 10, 4);
+    gg.fillCircle(22, 20, 5);
+    gg.lineStyle(1, 0x000000, 0.35);
+    gg.lineBetween(0, 16, 32, 16);
+  });
+
+  // Enterable hole tile (no collision — dark tunnel opening)
+  g.clear();
+  g.fillStyle(0x0d1117, 1);
+  g.fillRect(0, 0, GAME.tileSize, GAME.tileSize);
+  g.fillStyle(0x000000, 1);
+  g.fillEllipse(16, 16, 28, 26);
+  g.fillStyle(0x161b22, 0.9);
+  g.fillEllipse(16, 14, 18, 16);
+  g.fillStyle(0x000000, 1);
+  g.fillEllipse(16, 16, 12, 14);
+  g.lineStyle(2, 0x6c757d, 0.45);
+  g.strokeEllipse(16, 16, 28, 26);
+  g.generateTexture('hole', GAME.tileSize, GAME.tileSize);
+
   // checkpoint flag
   g.clear();
   g.fillStyle(0x06d6a0, 1);

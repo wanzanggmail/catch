@@ -8,7 +8,9 @@ export type TileKind =
   | 'cloud'
   | 'checkpoint'
   | 'spawn'
-  | 'boss';
+  | 'boss'
+  | 'hole'
+  | 'cave';
 
 export interface RatSpawn {
   /** Tile coords — rat stands on platform at (x, y) */
@@ -63,13 +65,19 @@ function clamp(v: number, min: number, max: number): number {
  */
 export function generateMap(stage: number, map: number): MapDef {
   const width = GAME.mapWidthTiles;
-  // Playable height: room to climb without feeling endless
-  const height = 56 + stage * 2 + map;
+  // Later stages used to grow too tall — keep climbs shorter
+  const height = 46 + Math.min(stage, 3) + Math.min(map, 2);
   const seed = stage * 7919 + map * 104729 + 7;
   const rnd = mulberry32(seed);
   const tiles = emptyGrid(width, height);
   const questionBuffs: Record<string, BuffType> = {};
   const ratSpawns: RatSpawn[] = [];
+
+  // Extra ease on mid/late maps (esp. stage 4 map 3+)
+  const softZigzag = stage >= 4 || map >= 3;
+  const widePads = stage >= 4 || map >= 3;
+  const ratChance = stage >= 4 ? 0.1 : map >= 3 ? 0.18 : 0.28;
+  const maxRats = stage >= 4 ? 2 : map >= 3 ? 3 : 5;
 
   // Ground floor
   for (let x = 0; x < width; x++) {
@@ -96,31 +104,33 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[spawnY]![spawnX] = 'spawn';
 
-  // Climbing ledges: main platform every 4 rows (jumpable gap)
+  // Climbing ledges: pure left↔right zigzag, one pad per row, wide air gap
   let y = height - 7;
-  let prevCenter = spawnX;
-  let side = -1;
+  let side = -1; // next platform goes left first
   let platIndex = 0;
-  const checkpointEvery = 3; // every 3 main platforms
+  const checkpointEvery = 2;
+  const step = 4; // empty rows between ledges (no vertical stacking)
+  const leftEdge = 1;
+  const rightEdge = width - 1;
 
   while (y > 10) {
     side *= -1;
-    const platW = 3 + Math.floor(rnd() * 3); // 3~5
-    // Alternate sides with moderate offset (still reachable)
-    const target =
-      side < 0
-        ? 2 + Math.floor(rnd() * 3) + Math.floor(platW / 2)
-        : width - 3 - Math.floor(rnd() * 3) - Math.floor(platW / 2);
-    // Blend toward previous so gap isn't extreme
-    let center = Math.round(prevCenter * 0.35 + target * 0.65);
-    center = clamp(center, 2 + Math.floor(platW / 2), width - 3 - Math.floor(platW / 2));
-    const x = clamp(center - Math.floor(platW / 2), 1, width - platW - 1);
+    const platW = widePads ? 5 + Math.floor(rnd() * 2) : 4 + Math.floor(rnd() * 2); // 5~6 or 4~5
+    // Zigzag only — never place pads on consecutive rows
+    let x: number;
+    if (side < 0) {
+      x = softZigzag ? leftEdge + 1 + Math.floor(rnd() * 2) : leftEdge + Math.floor(rnd() * 2);
+    } else {
+      const inset = softZigzag ? 2 + Math.floor(rnd() * 2) : Math.floor(rnd() * 2);
+      x = rightEdge - platW - inset;
+    }
+    x = clamp(x, 1, width - platW - 1);
 
     let kind: TileKind = 'brick';
     const roll = rnd();
-    if (stage >= 5 && roll < 0.12) kind = 'cloud';
-    else if (stage >= 5 && roll < 0.05) kind = 'line';
-    else if (roll < 0.34) kind = 'question';
+    if (stage >= 6 && roll < 0.08) kind = 'cloud';
+    else if (stage >= 6 && roll < 0.04) kind = 'line';
+    else if (roll < 0.45) kind = 'question';
 
     setPlat(tiles, x, y, platW, kind);
 
@@ -140,8 +150,13 @@ export function generateMap(stage: number, map: number): MapDef {
       }
     }
 
-    // Small 1-hit rats on many platforms (skip spawn-adjacent first ledge)
-    if (platIndex >= 1 && platW >= 3 && kind !== 'cloud' && rnd() < 0.55) {
+    if (
+      platIndex >= 2 &&
+      platW >= 4 &&
+      kind !== 'cloud' &&
+      ratSpawns.length < maxRats &&
+      rnd() < ratChance
+    ) {
       const rx = x + Math.floor(platW / 2);
       ratSpawns.push({
         x: rx,
@@ -151,49 +166,83 @@ export function generateMap(stage: number, map: number): MapDef {
       });
     }
 
-    // Occasional mid helper (not every platform — keeps air gaps visible)
-    if (rnd() < 0.4) {
-      const midY = y - 2;
-      const midCenter = Math.round((prevCenter + center) / 2);
-      const midW = 2;
-      const midX = clamp(midCenter - 1, 1, width - midW - 1);
-      // Only place if cell is empty so we don't fill the shaft
-      if (tiles[midY]![midX] === 'empty') {
-        setPlat(tiles, midX, midY, midW, 'brick');
-      }
-    }
-
-    prevCenter = center;
-    // Main spacing: 4 tiles of rise → clear empty rows between ledges
-    y -= 4;
+    y -= step;
     platIndex++;
   }
 
-  // Boss arena
-  for (let x = 1; x < width - 1; x++) {
-    tiles[7]![x] = 'brick';
-    tiles[6]![x] = 'empty';
-    tiles[5]![x] = 'empty';
-  }
-  // Approach platforms into arena
-  setPlat(tiles, 2, 11, 3, 'brick');
-  setPlat(tiles, width - 5, 11, 3, 'brick');
-  setPlat(tiles, Math.floor(width / 2) - 2, 14, 4, 'brick');
-  tiles[4]![Math.floor(width / 2)] = 'boss';
+  // Boss arena + enterable cave hole at the end of the climb
+  const mid = Math.floor(width / 2);
+  const holeLeft = mid - 1;
+  const holeRight = mid + 1; // 3-tile wide hole
 
-  // Clear boss fight space
-  for (let by = 1; by <= 5; by++) {
-    for (let bx = 1; bx < width - 1; bx++) {
-      if (tiles[by]![bx] !== 'boss') tiles[by]![bx] = 'empty';
+  // Clear climb leftovers so the route to the hole stays open
+  for (let cy = 7; cy <= 24; cy++) {
+    for (let cx = 1; cx < width - 1; cx++) {
+      const t = tiles[cy]![cx];
+      if (
+        t === 'brick' ||
+        t === 'question' ||
+        t === 'cloud' ||
+        t === 'line' ||
+        t === 'checkpoint' ||
+        t === 'cave' ||
+        t === 'hole'
+      ) {
+        tiles[cy]![cx] = 'empty';
+      }
     }
   }
-  tiles[4]![Math.floor(width / 2)] = 'boss';
+  for (let i = ratSpawns.length - 1; i >= 0; i--) {
+    const r = ratSpawns[i]!;
+    if (r.y >= 6 && r.y <= 24) ratSpawns.splice(i, 1);
+  }
+
+  // Cave roof (y=8..9) with an open shaft in the center
+  for (let x = 1; x < width - 1; x++) {
+    const inHole = x >= holeLeft && x <= holeRight;
+    tiles[8]![x] = inHole ? 'empty' : 'cave';
+    tiles[9]![x] = inHole ? 'empty' : 'cave';
+  }
+
+  // Hole mouth at y=10 — only the opening is hole; sides are cave frame
+  for (let x = 1; x < width - 1; x++) {
+    const inHole = x >= holeLeft && x <= holeRight;
+    tiles[10]![x] = inHole ? 'hole' : 'cave';
+  }
+  // Keep y=11 fully open under the mouth (no cave pillars blocking the climb-in)
+  for (let x = holeLeft; x <= holeRight; x++) {
+    tiles[11]![x] = 'empty';
+  }
+
+  // Arena floor above the hole (y=7) — solid except the hole gap
+  for (let x = 1; x < width - 1; x++) {
+    const inHole = x >= holeLeft && x <= holeRight;
+    tiles[7]![x] = inHole ? 'hole' : 'brick';
+  }
+
+  // Landing pads inside the arena after climbing through
+  setPlat(tiles, 1, 6, 3, 'brick');
+  setPlat(tiles, width - 4, 6, 3, 'brick');
+
+  // Open zigzag path up to the hole (wide gaps, never a sealed row)
+  setPlat(tiles, 1, 23, 5, 'brick'); // left
+  setPlat(tiles, width - 6, 19, 5, 'brick'); // right
+  setPlat(tiles, 1, 15, 5, 'brick'); // left
+  setPlat(tiles, mid - 2, 12, 5, 'brick'); // center pad directly under the hole
+
+  // Clear boss fight space (y=1..5)
+  for (let by = 1; by <= 5; by++) {
+    for (let bx = 1; bx < width - 1; bx++) {
+      tiles[by]![bx] = 'empty';
+    }
+  }
+  tiles[3]![mid] = 'boss';
 
   return { stage, map, width, height, tiles, questionBuffs, ratSpawns };
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v5-s${stage}m${map}`;
+  return `v13-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {
