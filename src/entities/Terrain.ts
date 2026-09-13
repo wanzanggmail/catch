@@ -134,7 +134,12 @@ export class TerrainBuilder {
     block.setData('used', true);
     block.setTexture('question_empty');
     block.refreshBody();
-    // Always randomize on hit for more variety each play
+    // Finale maps keep the assigned item; others stay random for variety
+    if (this.def.finale) {
+      const assigned = (block.getData('buff') as BuffType | undefined) ?? 'speed';
+      buffs.grant(assigned, now);
+      return assigned;
+    }
     return buffs.grantRandom(now);
   }
 }

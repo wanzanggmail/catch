@@ -27,6 +27,12 @@ export interface MapDef {
   tiles: TileKind[][]; // [y][x]
   questionBuffs: Record<string, BuffType>; // "x,y" -> buff
   ratSpawns: RatSpawn[];
+  /** Stage 6 Map 5 — collect every item, then the giant rat appears */
+  finale?: boolean;
+  /** Boss HP override (finale uses 7) */
+  bossHp?: number;
+  /** Harder boss attack patterns */
+  hardBoss?: boolean;
 }
 
 function mulberry32(seed: number): () => number {
@@ -189,11 +195,76 @@ export function generateMap(stage: number, map: number): MapDef {
   }
   tiles[4]![Math.floor(width / 2)] = 'boss';
 
-  return { stage, map, width, height, tiles, questionBuffs, ratSpawns };
+  // Stage 6 Map 5 finale: guarantee every item type, then boss awakens
+  const finale = stage === 6 && map === 5;
+  if (finale) {
+    placeFinaleItems(tiles, questionBuffs, width, height, rnd);
+  }
+
+  return {
+    stage,
+    map,
+    width,
+    height,
+    tiles,
+    questionBuffs,
+    ratSpawns,
+    finale: finale || undefined,
+    bossHp: finale ? 7 : undefined,
+    hardBoss: finale || undefined,
+  };
+}
+
+/** Place one question block for every buff type along the climb. */
+function placeFinaleItems(
+  tiles: TileKind[][],
+  questionBuffs: Record<string, BuffType>,
+  width: number,
+  height: number,
+  rnd: () => number,
+): void {
+  // Clear previous random question assignments so the finale set is exact
+  for (const key of Object.keys(questionBuffs)) {
+    delete questionBuffs[key];
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (tiles[y]![x] === 'question') tiles[y]![x] = 'brick';
+    }
+  }
+
+  const types = [...BUFF_TYPES];
+  // Spread items from lower climb up toward the boss arena
+  const topY = 12;
+  const bottomY = height - 10;
+  const span = Math.max(types.length, 1);
+  for (let i = 0; i < types.length; i++) {
+    const t = types[i]!;
+    const y = Math.round(bottomY - ((bottomY - topY) * (i + 0.5)) / span);
+    const side = i % 2 === 0 ? -1 : 1;
+    const platW = 4;
+    let x =
+      side < 0
+        ? 1 + Math.floor(rnd() * 2)
+        : width - platW - 1 - Math.floor(rnd() * 2);
+    x = clamp(x, 1, width - platW - 1);
+    // Clear row then place platform with centered question
+    for (let cx = 1; cx < width - 1; cx++) {
+      if (tiles[y]![cx] === 'brick' || tiles[y]![cx] === 'cloud' || tiles[y]![cx] === 'line') {
+        // keep side structure but carve room for our pad
+      }
+    }
+    setPlat(tiles, x, y, platW, 'brick');
+    const qx = x + Math.floor(platW / 2);
+    tiles[y]![qx] = 'question';
+    questionBuffs[`${qx},${y}`] = t;
+    // Open air above the block so head-bumps work
+    if (y > 0 && tiles[y - 1]![qx] === 'brick') tiles[y - 1]![qx] = 'empty';
+  }
 }
 
 export function mapKey(stage: number, map: number): string {
-  return `v5-s${stage}m${map}`;
+  return `v14-s${stage}m${map}`;
 }
 
 export function allMapDefs(): MapDef[] {

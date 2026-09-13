@@ -43,6 +43,11 @@ export class PlayScene extends Phaser.Scene {
   private ended = false;
   private slash?: Phaser.GameObjects.Sprite;
   private difficulty = 1;
+  private finaleMode = false;
+  private finaleItemsTotal = 0;
+  private finaleItemsGot = 0;
+  private bossMaxHp: number = GAME.bossHp;
+  private bossSpawned = true;
 
   constructor() {
     super('Play');
@@ -52,6 +57,7 @@ export class PlayScene extends Phaser.Scene {
     this.stage = data.stage ?? 1;
     this.map = data.map ?? 1;
     this.ended = false;
+    this.finaleItemsGot = 0;
     this.buffs.clear();
   }
 
@@ -86,7 +92,17 @@ export class PlayScene extends Phaser.Scene {
       GAME.playerHp,
     );
 
-    this.boss = new BossRat(this, markers.boss.x, markers.boss.y, this.difficulty);
+    this.finaleMode = !!def.finale;
+    this.finaleItemsTotal = this.finaleMode ? Object.keys(def.questionBuffs).length : 0;
+    this.finaleItemsGot = 0;
+    this.bossMaxHp = def.bossHp ?? GAME.bossHp;
+    this.bossSpawned = !this.finaleMode;
+
+    this.boss = new BossRat(this, markers.boss.x, markers.boss.y, this.difficulty, {
+      hp: this.bossMaxHp,
+      hard: !!def.hardBoss,
+      dormant: this.finaleMode,
+    });
 
     // Small 1-hit rats
     this.rats = [];
@@ -132,12 +148,12 @@ export class PlayScene extends Phaser.Scene {
     });
 
     this.physics.add.overlap(this.player, this.boss, () => {
-      if (this.ended || this.boss.isDead) return;
+      if (this.ended || this.boss.isDead || this.boss.isDormant) return;
       if (this.player.takeHit()) this.lose('거대 쥐에게 당했습니다');
     });
 
     this.physics.add.overlap(this.player, this.boss.projectiles, (_p, proj) => {
-      if (this.ended) return;
+      if (this.ended || this.boss.isDormant) return;
       (proj as Phaser.Physics.Arcade.Sprite).destroy();
       if (this.player.takeHit()) this.lose('투사체에 맞았습니다');
     });
@@ -308,7 +324,11 @@ export class PlayScene extends Phaser.Scene {
     });
     refreshSideUi();
 
-    this.flashMsg(`${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`);
+    this.flashMsg(
+      this.finaleMode
+        ? `${EVOLUTION[evo].label} — 모든 아이템을 모으면 거대 쥐가 나타난다!`
+        : `${EVOLUTION[evo].label} — 꼭대기의 거대 쥐를 처치하라!`,
+    );
   }
 
   private handleQuestionHit(
@@ -332,7 +352,28 @@ export class PlayScene extends Phaser.Scene {
         saveManager.addInventoryBuff(pickBagItem(granted));
       }
       if (body.velocity.y < 0) body.setVelocityY(Math.min(body.velocity.y, -140));
+      this.onFinaleItemCollected();
     }
+  }
+
+  private onFinaleItemCollected(): void {
+    if (!this.finaleMode || this.bossSpawned) return;
+    this.finaleItemsGot = Math.min(this.finaleItemsTotal, this.finaleItemsGot + 1);
+    if (this.finaleItemsGot < this.finaleItemsTotal) {
+      this.flashMsg(`아이템 ${this.finaleItemsGot}/${this.finaleItemsTotal}`);
+      return;
+    }
+    this.bossSpawned = true;
+    this.boss.awaken(this.time.now);
+    this.flashMsg('모든 아이템 획득! 거대 쥐 출현! (7방)');
+    // Pull camera toward the boss arena briefly
+    this.tweens.add({
+      targets: this.cameras.main,
+      scrollY: Math.max(0, this.boss.y - GAME.height * 0.45),
+      duration: 700,
+      ease: 'Sine.easeInOut',
+      onComplete: () => this.vcam.snapToPlayer(this.player.y),
+    });
   }
 
   private applyItem(type: BuffType): void {
@@ -429,7 +470,9 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.vcam.update(this.player.y, delta / 1000);
-    this.boss.updateAI(this.time.now, this.player.x);
+    if (!this.boss.isDormant) {
+      this.boss.updateAI(this.time.now, this.player.x);
+    }
     for (const rat of this.rats) {
       if (!rat.isDead && rat.active) rat.updatePatrol();
     }
@@ -444,8 +487,11 @@ export class PlayScene extends Phaser.Scene {
 
     // HUD
     const evo = EVOLUTION[this.player.evolution];
+    const bossHud = this.boss.isDormant
+      ? `아이템 ${this.finaleItemsGot}/${this.finaleItemsTotal}`
+      : `보스 ${this.boss.isDead ? 0 : this.boss.hp}/${this.bossMaxHp}`;
     this.hud.setText(
-      `HP ${this.player.hp}/${this.player.maxHp}  ·  보스 ${this.boss.isDead ? 0 : this.boss.hp}/${GAME.bossHp}  ·  ${evo.label}`,
+      `HP ${this.player.hp}/${this.player.maxHp}  ·  ${bossHud}  ·  ${evo.label}`,
     );
     const buffs = this.buffs.list();
     const inv = saveManager.getActive().inventoryBuffs;
@@ -472,6 +518,7 @@ export class PlayScene extends Phaser.Scene {
     // Hit boss if in range
     if (
       !this.boss.isDead &&
+      !this.boss.isDormant &&
       Math.abs(this.boss.x - sx) < 50 &&
       Math.abs(this.boss.y - sy) < 50
     ) {
